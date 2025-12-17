@@ -1,0 +1,342 @@
+import { useEffect, useRef } from 'react';
+import type { Stage as StageType } from 'konva/lib/Stage';
+import { useEditorStore } from '../state/useEditorStore';
+import type { BrushStroke, BrushLayer } from '../state/editorTypes';
+
+interface BrushToolProps {
+  stageRef: React.RefObject<StageType | null>;
+}
+
+export const BrushTool = ({ stageRef }: BrushToolProps) => {
+  const isDrawing = useRef(false);
+  const currentPoints = useRef<number[]>([]);
+  const currentLayerId = useRef<string | null>(null);
+  
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const getState = () => useEditorStore.getState();
+    const nextLayerName = () => {
+      const { layers } = getState();
+      let index = 1;
+      while (layers.some((l) => l.name === `Layer ${index}`)) {
+        index += 1;
+      }
+      return `Layer ${index}`;
+    };
+    
+    const { activeTool } = getState();
+    
+    // Only activate when brush or eraser tool is active
+    if (activeTool !== 'brush' && activeTool !== 'eraser') {
+      return;
+    }
+
+    // Get or create brush layer
+    const ensureBrushLayer = (): BrushLayer | null => {
+      const state = getState();
+      const { layers, selectedLayerId, addLayer, setSelection } = state;
+      
+      // First check if selected layer is a brush layer
+      if (selectedLayerId) {
+        const selected = layers.find(l => l.id === selectedLayerId);
+        if (selected?.type === 'brush') {
+          return selected as BrushLayer;
+        }
+      }
+      
+      // Find any existing brush layer
+      let brushLayer = layers.find(l => l.type === 'brush') as BrushLayer | undefined;
+      
+      if (!brushLayer) {
+        // Create new brush layer
+        addLayer({
+          type: 'brush',
+          name: nextLayerName(),
+          strokes: [],
+          visible: true,
+          locked: false,
+          opacity: 1,
+          x: 0,
+          y: 0,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        
+        // Get the newly created layer
+        const newState = getState();
+        brushLayer = newState.layers.find(l => l.type === 'brush') as BrushLayer;
+        if (brushLayer) {
+          setSelection(brushLayer.id);
+        }
+      } else {
+        setSelection(brushLayer.id);
+      }
+      
+      return brushLayer || null;
+    };
+
+    const handleMouseDown = (e: any) => {
+      // Prevent drawing on transformer handles
+      const target = e.target;
+      if (target !== stage && target.getClassName?.() !== 'Layer') {
+        const parent = target.getParent?.();
+        if (parent?.getClassName?.() === 'Transformer') {
+          return;
+        }
+      }
+      
+      const brushLayer = ensureBrushLayer();
+      if (!brushLayer || brushLayer.locked) return;
+      
+      e.cancelBubble = true;
+      isDrawing.current = true;
+      currentLayerId.current = brushLayer.id;
+      
+      const pos = stage.getPointerPosition();
+      if (pos) {
+        currentPoints.current = [pos.x, pos.y];
+      }
+    };
+
+    const handleMouseMove = () => {
+      if (!isDrawing.current || !currentLayerId.current) return;
+      
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      
+      const lastX = currentPoints.current[currentPoints.current.length - 2];
+      const lastY = currentPoints.current[currentPoints.current.length - 1];
+      
+      // Only add point if moved enough (for smoother lines)
+      const dx = pos.x - lastX;
+      const dy = pos.y - lastY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      const { brushSettings } = getState();
+      const minDistance = Math.max(2, brushSettings.size / 20);
+      
+      if (distance >= minDistance) {
+        currentPoints.current.push(pos.x, pos.y);
+        
+        // Update the layer with current stroke for real-time preview
+        const state = getState();
+        const layer = state.layers.find(l => l.id === currentLayerId.current);
+        if (layer && layer.type === 'brush') {
+          const brushLayer = layer as BrushLayer;
+          const { activeTool, brushSettings } = state;
+          
+          // Create preview stroke
+          const previewStroke: BrushStroke = {
+            points: [...currentPoints.current],
+            color: activeTool === 'eraser' ? 'transparent' : brushSettings.color,
+            size: brushSettings.size,
+            hardness: brushSettings.hardness,
+            opacity: brushSettings.opacity / 100,
+            flow: brushSettings.flow,
+            blendMode: activeTool === 'eraser' ? 'normal' : brushSettings.blendMode,
+          };
+          
+          // Get committed strokes (all except temporary preview)
+          const committedStrokes = brushLayer.strokes.filter(s => !(s as any)._preview);
+          
+          // Update with committed strokes + preview
+          const previewWithFlag = { ...previewStroke, _preview: true };
+          state.updateLayer(currentLayerId.current!, { 
+            strokes: [...committedStrokes, previewWithFlag] 
+          });
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (!isDrawing.current || !currentLayerId.current) return;
+      
+      const state = getState();
+      const layer = state.layers.find(l => l.id === currentLayerId.current);
+      
+      if (layer && layer.type === 'brush' && currentPoints.current.length >= 4) {
+        const { activeTool, brushSettings } = state;
+        
+        // Create final stroke
+        const finalStroke: BrushStroke = {
+          points: [...currentPoints.current],
+          color: activeTool === 'eraser' ? 'transparent' : brushSettings.color,
+          size: brushSettings.size,
+          hardness: brushSettings.hardness,
+          opacity: brushSettings.opacity / 100,
+          flow: brushSettings.flow,
+          blendMode: activeTool === 'eraser' ? 'normal' : brushSettings.blendMode,
+        };
+        
+        // Add final stroke
+        state.addBrushStroke(currentLayerId.current!, finalStroke);
+        
+        // Clean up any preview strokes
+        const updatedState = getState();
+        const updatedLayer = updatedState.layers.find(l => l.id === currentLayerId.current) as BrushLayer;
+        if (updatedLayer) {
+          const cleanStrokes = updatedLayer.strokes.filter(s => !(s as any)._preview);
+          if (cleanStrokes.length !== updatedLayer.strokes.length) {
+            state.updateLayer(currentLayerId.current!, { strokes: cleanStrokes });
+          }
+        }
+      } else if (layer && layer.type === 'brush') {
+        // Remove any preview strokes if stroke was too short
+        const currentBrushLayer = layer as BrushLayer;
+        const committedStrokes = currentBrushLayer.strokes.filter(s => !(s as any)._preview);
+        if (committedStrokes.length !== currentBrushLayer.strokes.length) {
+          state.updateLayer(currentLayerId.current!, { strokes: committedStrokes });
+        }
+      }
+      
+      isDrawing.current = false;
+      currentPoints.current = [];
+      currentLayerId.current = null;
+    };
+
+    // Attach events
+    stage.on('mousedown touchstart', handleMouseDown);
+    stage.on('mousemove touchmove', handleMouseMove);
+    stage.on('mouseup touchend mouseleave', handleMouseUp);
+
+    // Change cursor
+    const container = stage.container();
+    if (container) {
+      container.style.cursor = 'crosshair';
+    }
+
+    return () => {
+      stage.off('mousedown touchstart', handleMouseDown);
+      stage.off('mousemove touchmove', handleMouseMove);
+      stage.off('mouseup touchend mouseleave', handleMouseUp);
+      
+      if (container) {
+        container.style.cursor = 'default';
+      }
+    };
+  }, [stageRef]);
+
+  // Handle keyboard shortcuts for tools
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      const { setActiveTool, addLayer, setBrushSettings, brushSettings } = useEditorStore.getState();
+      const nextLayerName = () => {
+        const { layers } = useEditorStore.getState();
+        let index = 1;
+        while (layers.some((l) => l.name === `Layer ${index}`)) {
+          index += 1;
+        }
+        return `Layer ${index}`;
+      };
+      
+      switch (e.key.toLowerCase()) {
+        case 'v':
+          setActiveTool('select');
+          break;
+        case 'b':
+          setActiveTool('brush');
+          break;
+        case 'e':
+          setActiveTool('eraser');
+          break;
+        case 't':
+          addLayer({
+            type: 'text',
+            name: nextLayerName(),
+            text: 'Sample Text',
+            fontSize: 48,
+            fontFamily: 'Arial',
+            fill: '#ffffff',
+            align: 'left',
+            verticalAlign: 'top',
+            fontStyle: 'normal',
+            textDecoration: 'none',
+            visible: true,
+            locked: false,
+            opacity: 1,
+            x: 100,
+            y: 100,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          setActiveTool('select');
+          break;
+        case 'u':
+          addLayer({
+            type: 'rect',
+            name: nextLayerName(),
+            width: 200,
+            height: 100,
+            fill: '#B73038',
+            visible: true,
+            locked: false,
+            opacity: 1,
+            x: 100,
+            y: 100,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          setActiveTool('select');
+          break;
+        case 'o':
+          addLayer({
+            type: 'circle',
+            name: nextLayerName(),
+            radius: 50,
+            fill: '#D7DCDD',
+            visible: true,
+            locked: false,
+            opacity: 1,
+            x: 150,
+            y: 150,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          setActiveTool('select');
+          break;
+        case 'l':
+          addLayer({
+            type: 'line',
+            name: nextLayerName(),
+            points: [100, 100, 300, 200],
+            stroke: '#ffffff',
+            strokeWidth: 4,
+            lineCap: 'round',
+            lineJoin: 'round',
+            visible: true,
+            locked: false,
+            opacity: 1,
+            x: 0,
+            y: 0,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          setActiveTool('select');
+          break;
+        case '[':
+          setBrushSettings({ size: Math.max(1, brushSettings.size - 5) });
+          break;
+        case ']':
+          setBrushSettings({ size: Math.min(200, brushSettings.size + 5) });
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return null;
+};
