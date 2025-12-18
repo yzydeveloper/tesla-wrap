@@ -60,8 +60,7 @@ export const NewProjectDialog = ({ isOpen, onClose }: NewProjectDialogProps) => 
     setBaseColor(selectedColor);
     
     // Set project name
-    const model = carModels.find(m => m.id === selectedModelId);
-    const name = projectName.trim() || `${model?.name || 'Tesla'} Wrap Design`;
+    const name = projectName.trim() || 'New Project';
     setProjectName(name);
     
     // Reset dialog state
