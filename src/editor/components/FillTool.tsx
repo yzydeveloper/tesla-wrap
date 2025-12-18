@@ -143,13 +143,6 @@ export const FillTool = ({ stageRef }: FillToolProps) => {
       
       if (filledPixels.size === 0) return;
       
-      // Store pixel indices for later color regeneration
-      const pixelIndices = Array.from(filledPixels);
-      
-      // Create fill image data URL
-      const fillImageDataUrl = createFillImage(filledPixels, fillColorHex, canvas.width, canvas.height);
-      if (!fillImageDataUrl) return;
-      
       // Calculate bounding box for path
       let minX = canvas.width;
       let minY = canvas.height;
@@ -165,7 +158,33 @@ export const FillTool = ({ stageRef }: FillToolProps) => {
         maxY = Math.max(maxY, py);
       });
       
-      const path = [minX, minY, maxX - minX, maxY - minY];
+      const bboxWidth = maxX - minX + 1;
+      const bboxHeight = maxY - minY + 1;
+      const path = [minX, minY, bboxWidth, bboxHeight];
+      
+      // Create cropped image for bounding box only
+      // Adjust pixel indices to be relative to bounding box
+      const croppedPixelIndices: number[] = [];
+      const getPixelIndex = (px: number, py: number, w: number) => (py * w + px) * 4;
+      
+      filledPixels.forEach((pixelIdx) => {
+        const px = (pixelIdx / 4) % canvas.width;
+        const py = Math.floor((pixelIdx / 4) / canvas.width);
+        // Convert to bounding box relative coordinates
+        const relX = px - minX;
+        const relY = py - minY;
+        const relIdx = getPixelIndex(relX, relY, bboxWidth);
+        croppedPixelIndices.push(relIdx);
+      });
+      
+      // Create cropped fill image (only bounding box area)
+      const fillImageDataUrl = createFillImage(
+        new Set(croppedPixelIndices),
+        fillColorHex,
+        bboxWidth,
+        bboxHeight
+      );
+      if (!fillImageDataUrl) return;
       
       // Create fill layer
       const { layers } = useEditorStore.getState();
@@ -179,15 +198,15 @@ export const FillTool = ({ stageRef }: FillToolProps) => {
         name: `Fill ${index}`,
         fill: fillColorHex,
         path,
-        fillImageDataUrl, // Store the image data URL
-        pixelMask: pixelIndices, // Store pixel indices for color regeneration
-        maskWidth: canvas.width,
-        maskHeight: canvas.height,
+        fillImageDataUrl, // Store the cropped image data URL
+        pixelMask: croppedPixelIndices, // Store pixel indices relative to bounding box
+        maskWidth: bboxWidth,
+        maskHeight: bboxHeight,
         visible: true,
         locked: false,
         opacity: 1,
-        x: 0,
-        y: 0,
+        x: minX, // Position at bounding box origin
+        y: minY,
         rotation: 0,
         scaleX: 1,
         scaleY: 1,

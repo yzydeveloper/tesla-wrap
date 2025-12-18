@@ -90,12 +90,18 @@ export const FillLayer = ({
   
   if (!image) return null;
   
+  // Get bounding box dimensions from path or mask
+  const bboxWidth = layer.maskWidth || (layer.path && layer.path[2]) || image.width;
+  const bboxHeight = layer.maskHeight || (layer.path && layer.path[3]) || image.height;
+  
   return (
     <KonvaImage
       id={id || layer.id}
       image={image}
       x={layer.x}
       y={layer.y}
+      width={bboxWidth}
+      height={bboxHeight}
       rotation={layer.rotation}
       scaleX={layer.scaleX}
       scaleY={layer.scaleY}
