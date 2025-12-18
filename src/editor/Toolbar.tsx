@@ -234,7 +234,7 @@ export const Toolbar = ({ stageRef, onOpen3DPreview }: ToolbarProps) => {
 
   return (
     <>
-      <div className="panel border-b-0 rounded-xl p-2 sm:p-3 flex items-center gap-2 sm:gap-3 overflow-x-auto shadow-lg relative z-[100]">
+      <div className="panel border-b-0 rounded-xl p-2 sm:p-3 flex items-center gap-2 sm:gap-3 shadow-lg relative z-[100]">
         {/* Logo */}
         <div className="flex items-center gap-2 sm:gap-3 border-r border-tesla-dark/50 pr-2 sm:pr-3 flex-shrink-0">
           <img
