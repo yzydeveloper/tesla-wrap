@@ -1,4 +1,5 @@
 import { useEffect, useRef, forwardRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Stage, Layer, Image as KonvaImage, Rect, Group, Line } from 'react-konva';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import { useEditorStore } from './state/useEditorStore';
@@ -182,9 +183,116 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
     setTemplateImage,
     updateLayer,
     setSelection,
+    duplicateLayer,
+    deleteLayer,
+    copyLayer,
+    pasteLayer,
+    mirrorLayerHorizontal,
+    mirrorLayerVertical,
+    clipboardLayer,
+    contextMenu,
+    openLayerContextMenu,
+    closeLayerContextMenu,
   } = useEditorStore();
 
   const currentModel = carModels.find((m) => m.id === currentModelId) || carModels[0];
+  const contextLayer = contextMenu ? layers.find((l) => l.id === contextMenu.layerId) : null;
+
+  // Debug context menu state
+  useEffect(() => {
+    if (contextMenu) {
+      console.log('Context menu state:', contextMenu);
+      console.log('Context layer:', contextLayer);
+    }
+  }, [contextMenu, contextLayer]);
+
+  // Close context menu on outside click or ESC
+  useEffect(() => {
+    if (!contextMenu) return;
+    
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't close if clicking inside the context menu
+      if (target.closest('.context-menu-portal')) {
+        console.log('Click inside context menu - not closing');
+        return;
+      }
+      console.log('Click outside context menu - closing');
+      closeLayerContextMenu();
+    };
+    
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        console.log('ESC pressed - closing context menu');
+        closeLayerContextMenu();
+      }
+    };
+    
+    // Use setTimeout to avoid closing immediately after opening
+    setTimeout(() => {
+      window.addEventListener('mousedown', handleClick);
+      window.addEventListener('keydown', handleKey);
+    }, 10);
+    
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [contextMenu, closeLayerContextMenu]);
+
+  // Keyboard shortcuts for copy/paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
+      const isModKey = e.metaKey || e.ctrlKey;
+      
+      // Ignore if typing in an input field
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Cmd+C / Ctrl+C - Copy
+      if (isModKey && e.key === 'c' && selectedLayerId) {
+        e.preventDefault();
+        console.log('Copy shortcut triggered for layer:', selectedLayerId);
+        copyLayer(selectedLayerId);
+      }
+      
+      // Cmd+V / Ctrl+V - Paste
+      if (isModKey && e.key === 'v' && clipboardLayer) {
+        e.preventDefault();
+        console.log('Paste shortcut triggered');
+        const pasted = pasteLayer();
+        if (pasted) {
+          console.log('Pasted layer:', pasted.id);
+          setSelection(pasted.id);
+        }
+      }
+      
+      // Cmd+D / Ctrl+D - Duplicate
+      if (isModKey && e.key === 'd' && selectedLayerId) {
+        e.preventDefault();
+        console.log('Duplicate shortcut triggered for layer:', selectedLayerId);
+        duplicateLayer(selectedLayerId);
+      }
+      
+      // Delete / Backspace - Delete layer
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLayerId) {
+        const layer = layers.find((l) => l.id === selectedLayerId);
+        if (layer && !layer.locked) {
+          e.preventDefault();
+          console.log('Delete key pressed for layer:', selectedLayerId);
+          deleteLayer(selectedLayerId);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedLayerId, clipboardLayer, layers, copyLayer, pasteLayer, duplicateLayer, deleteLayer, setSelection]);
 
   // Load template image
   useEffect(() => {
@@ -205,15 +313,32 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
 
   const handleStageClick = (e: any) => {
     const clickedOnEmpty = e.target === e.target.getStage();
-    // Don't deselect when using brush/eraser tool (we want to keep drawing on the current layer)
+    // Don't deselect when using brush tool (we want to keep drawing on the current layer)
     if (clickedOnEmpty && activeTool === 'select') {
       setSelection(null);
+    }
+  };
+
+  const handleStageContextMenu = (e: any) => {
+    e.evt.preventDefault();
+    console.log('Stage context menu triggered, selectedLayerId:', selectedLayerId);
+    if (selectedLayerId) {
+      openLayerContextMenu(selectedLayerId, e.evt.clientX, e.evt.clientY);
+    } else {
+      closeLayerContextMenu();
     }
   };
 
   const handleLayerClick = (e: any, layerId: string) => {
     e.cancelBubble = true;
     setSelection(layerId);
+  };
+
+  const handleLayerContextMenu = (e: any, layerId: string) => {
+    e.evt.preventDefault();
+    console.log('Layer context menu triggered for:', layerId);
+    setSelection(layerId);
+    openLayerContextMenu(layerId, e.evt.clientX, e.evt.clientY);
   };
 
   const handleDragStart = (e: any) => {
@@ -577,6 +702,7 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
             height={1024}
             onClick={handleStageClick}
             onTap={handleStageClick}
+            onContextMenu={handleStageContextMenu}
             style={{
               borderRadius: 0,
               width: '1024px',
@@ -598,6 +724,7 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
                 const isBrushLayer = layer.type === 'brush';
                 const isFillLayer = layer.type === 'fill';
                 const isFillToolActive = activeTool === 'fill';
+                const isSelectToolActive = activeTool === 'select';
                 
                 // When fill tool is active, make fill layers non-interactive so clicks pass through
                 const fillLayerProps = isFillToolActive && isFillLayer ? {
@@ -612,13 +739,15 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
                   id: layer.id,
                   onClick: (e: any) => handleLayerClick(e, layer.id),
                   onTap: (e: any) => handleLayerClick(e, layer.id),
+                  onContextMenu: (e: any) => handleLayerContextMenu(e, layer.id),
                   onDragStart: isBrushLayer ? undefined : handleDragStart,
                   onDragMove: isBrushLayer ? undefined : handleDragMove,
                   onDragEnd: isBrushLayer ? undefined : (e: any) => handleDragEnd(e, layer.id),
                   // Disable transform for line layers (they use endpoint handles instead)
                   onTransformStart: (isBrushLayer || isLineLayer) ? undefined : (e: any) => handleTransformStart(e, layer.id),
                   onTransformEnd: (isBrushLayer || isLineLayer) ? undefined : (e: any) => handleTransformEnd(e, layer.id),
-                  draggable: !layer.locked && !isBrushLayer && !isFillToolActive,
+                  // Only allow dragging when select tool is active
+                  draggable: isSelectToolActive && !layer.locked && !isBrushLayer && !isFillToolActive,
                   ...fillLayerProps,
                 };
 
@@ -865,6 +994,99 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
           )}
         </div>
       </div>
+
+      {/* Global context menu (topmost) - using portal */}
+      {contextMenu && contextLayer && typeof document !== 'undefined' ? ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100000] pointer-events-none">
+          <div
+            className="absolute bg-[#1f1f21] border border-white/10 rounded-lg shadow-xl py-1 text-sm text-white/80 w-44 pointer-events-auto context-menu-portal"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Duplicate button clicked for layer:', contextLayer.id);
+                duplicateLayer(contextLayer.id);
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+              onClick={() => {
+                mirrorLayerHorizontal(contextLayer.id);
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Mirror Horizontal
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+              onClick={() => {
+                mirrorLayerVertical(contextLayer.id);
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+              Mirror Vertical
+            </button>
+            <button
+              className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2 transition-colors"
+              onClick={() => {
+                copyLayer(contextLayer.id);
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+              </svg>
+              Copy
+            </button>
+            <button
+              className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${clipboardLayer ? 'hover:bg-white/10' : 'opacity-40 cursor-not-allowed'}`}
+              disabled={!clipboardLayer}
+              onClick={() => {
+                if (!clipboardLayer) return;
+                const pasted = pasteLayer();
+                if (pasted) setSelection(pasted.id);
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 11h8m-8 4h5m-1-9V4a1 1 0 00-1-1H7a2 2 0 00-2 2v10a2 2 0 002 2h3m5 2h5a2 2 0 002-2v-5a2 2 0 00-2-2h-5a2 2 0 00-2 2v5a2 2 0 002 2z" />
+              </svg>
+              Paste
+            </button>
+            <div className="my-1 border-t border-white/10" />
+            <button
+              className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${contextLayer.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-red-500/10 text-red-400'}`}
+              disabled={contextLayer.locked}
+              onClick={() => {
+                if (!contextLayer.locked) {
+                  deleteLayer(contextLayer.id);
+                }
+                closeLayerContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          </div>
+        </div>,
+        document.body
+      ) : null}
     </div>
   );
 });

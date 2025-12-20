@@ -16,7 +16,7 @@ export const BrushCursor = ({ stageRef }: BrushCursorProps) => {
 
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage || (activeTool !== 'brush' && activeTool !== 'eraser')) {
+    if (!stage || activeTool !== 'brush') {
       setIsVisible(false);
       return;
     }
@@ -87,7 +87,7 @@ export const BrushCursor = ({ stageRef }: BrushCursorProps) => {
   }, [stageRef, activeTool, brushSettings.size, brushSettings.hardness]);
 
   // Hide cursor when drawing
-  if (!isVisible || !position || isDrawing || (activeTool !== 'brush' && activeTool !== 'eraser')) {
+  if (!isVisible || !position || isDrawing || activeTool !== 'brush') {
     return null;
   }
 

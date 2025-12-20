@@ -167,7 +167,6 @@ const BrushSettingsPanel = () => {
   const { activeTool, brushSettings, setBrushSettings } = useEditorStore();
   
   const getToolTitle = () => {
-    if (activeTool === 'eraser') return 'Eraser';
     return 'Brush';
   };
   
@@ -347,10 +346,10 @@ const BrushSettingsPanel = () => {
             style={{
               width: Math.min(brushSettings.size / 3, 80),
               height: Math.min(brushSettings.size / 3, 80),
-              backgroundColor: activeTool === 'eraser' ? '#ffffff' : brushSettings.color,
+              backgroundColor: brushSettings.color,
               opacity: brushSettings.opacity / 100,
               boxShadow: brushSettings.hardness < 100 
-                ? `0 0 ${(100 - brushSettings.hardness) / 2}px ${activeTool === 'eraser' ? '#ffffff' : brushSettings.color}`
+                ? `0 0 ${(100 - brushSettings.hardness) / 2}px ${brushSettings.color}`
                 : 'none',
               border: '1px solid rgba(255, 255, 255, 0.2)',
             }}
@@ -373,7 +372,7 @@ export const PropertiesPanel = () => {
   }, []);
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
-  const showBrushSettings = activeTool === 'brush' || activeTool === 'eraser';
+  const showBrushSettings = activeTool === 'brush';
   const showFillSettings = activeTool === 'fill';
 
   if (!selectedLayer) {
@@ -453,7 +452,7 @@ export const PropertiesPanel = () => {
             {showFillSettings && (
               <FillSettingsPanel />
             )}
-            {/* Brush Settings (shown when brush or eraser tool is active) */}
+            {/* Brush Settings (shown when brush tool is active) */}
             {showBrushSettings && (
               <BrushSettingsPanel />
             )}

@@ -4,7 +4,6 @@ import { loadImage, calculateImageScale } from '../../utils/image';
 import {
   Move,
   Brush,
-  Eraser,
   Type,
   RectangleHorizontal,
   Circle,
@@ -55,12 +54,6 @@ export const ToolsPanel = () => {
       label: 'Brush Tool',
       shortcut: 'B',
       icon: <Brush className="w-5 h-5" />,
-    },
-    {
-      id: 'eraser',
-      label: 'Eraser Tool',
-      shortcut: 'E',
-      icon: <Eraser className="w-5 h-5" />,
     },
     {
       id: 'text',
@@ -115,13 +108,14 @@ export const ToolsPanel = () => {
   const handleToolSelect = (tool: ToolType) => {
     setActiveTool(tool);
     
-    // When switching to brush tool, auto-create or select a brush layer
-    if (tool === 'brush' || tool === 'eraser') {
+    // BRUSH TOOL: Auto-create or select a brush layer for convenience
+    if (tool === 'brush') {
       const { layers } = useEditorStore.getState();
       const existingBrushLayer = layers.find(l => l.type === 'brush');
       
       if (existingBrushLayer) {
         setSelection(existingBrushLayer.id);
+        console.log('[BRUSH TOOL] Selected existing brush layer:', existingBrushLayer.name);
       } else {
         addLayer({
           type: 'brush',
@@ -136,6 +130,7 @@ export const ToolsPanel = () => {
           scaleX: 1,
           scaleY: 1,
         });
+        console.log('[BRUSH TOOL] Created new brush layer');
       }
       return;
     }

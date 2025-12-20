@@ -55,12 +55,20 @@ interface EditorStore extends EditorState {
   isDirty: boolean;  // Track unsaved changes
   projectName: string;
   designId: string | null;  // Track if editing existing design from database
+  clipboardLayer: Layer | null;
+  contextMenu: { layerId: string; x: number; y: number } | null;
   
   // Actions
   addLayer: (layer: Omit<Layer, 'id'> | Record<string, any>) => void;
   updateLayer: (id: string, updates: Partial<Layer> | Record<string, any>) => void;
   deleteLayer: (id: string) => void;
   duplicateLayer: (id: string) => void;
+  copyLayer: (id: string) => void;
+  pasteLayer: () => Layer | null;
+  mirrorLayerHorizontal: (id: string) => void;
+  mirrorLayerVertical: (id: string) => void;
+  openLayerContextMenu: (layerId: string, x: number, y: number) => void;
+  closeLayerContextMenu: () => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   setSelection: (id: string | null) => void;
   setBaseColor: (color: string) => void;
@@ -138,6 +146,8 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     isDirty: false,
     projectName: 'Untitled Project',
     designId: null,
+    clipboardLayer: null,
+    contextMenu: null,
 
     addLayer: (layerData) => {
       const newLayer: Layer = {
@@ -170,10 +180,15 @@ export const useEditorStore = create<EditorStore>((set, get) => {
     },
 
     duplicateLayer: (id) => {
+      console.log('duplicateLayer called with id:', id);
       const state = get();
       const layer = state.layers.find((l) => l.id === id);
-      if (!layer) return;
+      if (!layer) {
+        console.log('Layer not found!');
+        return;
+      }
 
+      console.log('Duplicating layer:', layer);
       const duplicated: Layer = {
         ...layer,
         id: uuidv4(),
@@ -187,6 +202,85 @@ export const useEditorStore = create<EditorStore>((set, get) => {
         selectedLayerId: duplicated.id,
       }));
       pushHistory();
+      console.log('Layer duplicated successfully');
+    },
+
+    copyLayer: (id) => {
+      const state = get();
+      const layer = state.layers.find((l) => l.id === id);
+      if (!layer) return;
+      set({ clipboardLayer: { ...layer } as Layer });
+    },
+
+    pasteLayer: () => {
+      const state = get();
+      const clip = state.clipboardLayer;
+      if (!clip) return null;
+
+      const pasted: Layer = {
+        ...clip,
+        id: uuidv4(),
+        name: `${clip.name || 'Layer'} Copy`,
+        x: (clip.x || 0) + 20,
+        y: (clip.y || 0) + 20,
+      } as Layer;
+
+      set((curr) => {
+        // Find the original layer's position (if it still exists)
+        const originalIndex = curr.layers.findIndex(l => l.id === clip.id);
+        
+        if (originalIndex !== -1) {
+          // Insert the pasted layer above the original in both panel and canvas
+          // Panel shows array in order: index 0 = top of panel
+          // Canvas renders in reverse: index 0 = bottom of canvas, last = top
+          // To place pasted ABOVE original in panel (smaller index), insert at same position
+          // This pushes original down in panel, and down in canvas (which is what we want)
+          const newLayers = [...curr.layers];
+          newLayers.splice(originalIndex, 0, pasted);
+          return {
+            layers: newLayers,
+            selectedLayerId: pasted.id,
+          };
+        } else {
+          // Original layer doesn't exist anymore, add to the top of panel (index 0)
+          return {
+            layers: [pasted, ...curr.layers],
+            selectedLayerId: pasted.id,
+          };
+        }
+      });
+      pushHistory();
+      return pasted;
+    },
+
+    mirrorLayerHorizontal: (id) => {
+      set((state) => ({
+        layers: state.layers.map((layer) =>
+          layer.id === id 
+            ? { ...layer, scaleX: (layer.scaleX || 1) * -1 } as Layer 
+            : layer
+        ),
+      }));
+      pushHistory();
+    },
+
+    mirrorLayerVertical: (id) => {
+      set((state) => ({
+        layers: state.layers.map((layer) =>
+          layer.id === id 
+            ? { ...layer, scaleY: (layer.scaleY || 1) * -1 } as Layer 
+            : layer
+        ),
+      }));
+      pushHistory();
+    },
+
+    openLayerContextMenu: (layerId, x, y) => {
+      set({ contextMenu: { layerId, x, y } });
+    },
+
+    closeLayerContextMenu: () => {
+      set({ contextMenu: null });
     },
 
     reorderLayers: (fromIndex, toIndex) => {

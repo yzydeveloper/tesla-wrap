@@ -20,9 +20,9 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
     const stage = stageRef.current;
     if (!stage) return;
     
-    // Only activate when brush or eraser tool is active
-    if (activeTool !== 'brush' && activeTool !== 'eraser') {
-      // Reset cursor when not brush/eraser
+    // Only activate when brush tool is active
+    if (activeTool !== 'brush') {
+      // Reset cursor when not brush
       const container = stage.container();
       if (container) {
         container.style.cursor = 'default';
@@ -65,40 +65,44 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
       if (selectedLayerId) {
         const selected = layers.find(l => l.id === selectedLayerId);
         if (selected?.type === 'brush') {
+          if (selected.locked) {
+            console.log('[BRUSH] Cannot draw on locked layer');
+            return null;
+          }
+          console.log('[BRUSH] Using selected brush layer:', selected.name);
           return selected as BrushLayer;
         }
       }
       
-      // Find any existing brush layer
-      let brushLayer = layers.find(l => l.type === 'brush') as BrushLayer | undefined;
+      // Create a new brush layer if none exists
+      console.log('[BRUSH] Creating new brush layer');
+      const brushLayer: BrushLayer = {
+        type: 'brush',
+        id: '', // Will be assigned by addLayer
+        name: nextLayerName('brush'),
+        strokes: [],
+        visible: true,
+        locked: false,
+        opacity: 1,
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+      };
       
-      if (!brushLayer) {
-        // Create new brush layer
-        addLayer({
-          type: 'brush',
-          name: nextLayerName('brush'),
-          strokes: [],
-          visible: true,
-          locked: false,
-          opacity: 1,
-          x: 0,
-          y: 0,
-          rotation: 0,
-          scaleX: 1,
-          scaleY: 1,
-        });
-        
-        // Get the newly created layer
-        const newState = getState();
-        brushLayer = newState.layers.find(l => l.type === 'brush') as BrushLayer;
-        if (brushLayer) {
-          setSelection(brushLayer.id);
-        }
-      } else {
-        setSelection(brushLayer.id);
+      addLayer(brushLayer);
+      
+      // Get the newly created layer
+      const newState = getState();
+      const newBrushLayer = newState.layers[newState.layers.length - 1] as BrushLayer;
+      if (newBrushLayer) {
+        setSelection(newBrushLayer.id);
+        console.log('[BRUSH] New brush layer created:', newBrushLayer.name);
+        return newBrushLayer;
       }
       
-      return brushLayer || null;
+      return null;
     };
 
     // Get correct pointer position accounting for CSS transform
@@ -204,12 +208,12 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
           // Create preview stroke
           const previewStroke: BrushStroke = {
             points: [...currentPoints.current],
-            color: activeTool === 'eraser' ? 'transparent' : brushSettings.color,
+            color: brushSettings.color,
             size: brushSettings.size,
             hardness: brushSettings.hardness,
             opacity: brushSettings.opacity / 100,
             flow: brushSettings.flow,
-            blendMode: activeTool === 'eraser' ? 'normal' : brushSettings.blendMode,
+            blendMode: brushSettings.blendMode,
           };
           
           // Get committed strokes (all except temporary preview)
@@ -236,12 +240,12 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
         // Create final stroke
         const finalStroke: BrushStroke = {
           points: [...currentPoints.current],
-          color: activeTool === 'eraser' ? 'transparent' : brushSettings.color,
+          color: brushSettings.color,
           size: brushSettings.size,
           hardness: brushSettings.hardness,
           opacity: brushSettings.opacity / 100,
           flow: brushSettings.flow,
-          blendMode: activeTool === 'eraser' ? 'normal' : brushSettings.blendMode,
+          blendMode: brushSettings.blendMode,
         };
         
         // Add final stroke
@@ -333,9 +337,6 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
           break;
         case 'b':
           setActiveTool('brush');
-          break;
-        case 'e':
-          setActiveTool('eraser');
           break;
         case 't':
           addLayer({

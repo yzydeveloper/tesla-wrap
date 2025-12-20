@@ -17,7 +17,6 @@ interface BrushLayerProps {
 const StrokeRenderer = ({ stroke, index }: { stroke: BrushStroke; index: number }) => {
   if (!stroke.points || stroke.points.length < 2) return null;
 
-  // For eraser mode
   if (stroke.color === 'transparent') {
     return (
       <Line

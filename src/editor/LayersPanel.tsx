@@ -23,7 +23,7 @@ interface LayerItemProps {
 }
 
 const LayerItem = ({ layer }: LayerItemProps) => {
-  const { selectedLayerId, setSelection, updateLayer, deleteLayer } = useEditorStore();
+  const { selectedLayerId, setSelection, updateLayer, deleteLayer, openLayerContextMenu } = useEditorStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(layer.name);
   const {
@@ -84,6 +84,11 @@ const LayerItem = ({ layer }: LayerItemProps) => {
           : 'hover:bg-tesla-black/80'
       }`}
       onClick={() => setSelection(layer.id)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setSelection(layer.id);
+        openLayerContextMenu(layer.id, e.clientX, e.clientY);
+      }}
     >
       <div className="flex items-center gap-3">
         <div
@@ -118,22 +123,23 @@ const LayerItem = ({ layer }: LayerItemProps) => {
             </div>
           )}
         </div>
+        {/* Action buttons inline (duplicate available via context menu) */}
         <div className="flex items-center gap-1">
           <button
             onClick={(e) => {
               e.stopPropagation();
               updateLayer(layer.id, { visible: !layer.visible });
             }}
-            className="p-1.5 hover:bg-tesla-dark/50 rounded-lg transition-colors text-tesla-gray hover:text-tesla-light"
+            className="p-1 hover:bg-tesla-dark/50 rounded transition-colors text-tesla-gray hover:text-tesla-light"
             title={layer.visible ? 'Hide' : 'Show'}
           >
             {layer.visible ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.29 3.29m13.42 13.42L21 21M12 12l.01.01" />
               </svg>
             )}
@@ -143,15 +149,15 @@ const LayerItem = ({ layer }: LayerItemProps) => {
               e.stopPropagation();
               updateLayer(layer.id, { locked: !layer.locked });
             }}
-            className="p-1.5 hover:bg-tesla-dark/50 rounded-lg transition-colors text-tesla-gray hover:text-tesla-light"
+            className="p-1 hover:bg-tesla-dark/50 rounded transition-colors text-tesla-gray hover:text-tesla-light"
             title={layer.locked ? 'Unlock' : 'Lock'}
           >
             {layer.locked ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
               </svg>
             )}
@@ -164,15 +170,16 @@ const LayerItem = ({ layer }: LayerItemProps) => {
               }
             }}
             disabled={layer.locked}
-            className="p-1.5 hover:bg-tesla-red/20 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors text-tesla-gray hover:text-tesla-red"
+            className="p-1 hover:bg-tesla-red/20 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors text-tesla-gray hover:text-tesla-red"
             title="Delete"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
         </div>
       </div>
+
     </div>
   );
 };

@@ -80,3 +80,4 @@ export async function checkEmailAvailable(email: string): Promise<{ available: b
     return { available: false, error: 'Failed to check email availability' }
   }
 }
+
