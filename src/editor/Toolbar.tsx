@@ -290,28 +290,34 @@ export const Toolbar = ({ stageRef, onOpen3DPreview }: ToolbarProps) => {
         <div className="flex items-center gap-1 border-r border-tesla-dark/50 pr-2 sm:pr-3 flex-shrink-0">
           <button
             onClick={handleNewProject}
-            className="px-2 sm:px-3 py-1.5 text-xs font-medium text-tesla-light bg-tesla-black/70 rounded hover:bg-tesla-black transition-colors"
-            title="New Project"
+            className="px-2 sm:px-3 py-1.5 text-xs font-medium text-tesla-light bg-tesla-black/70 rounded hover:bg-tesla-black transition-colors relative group"
           >
             New
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              New Project
+            </div>
           </button>
           <button
             onClick={handleOpenProject}
-            className="px-2 sm:px-3 py-1.5 text-xs font-medium text-tesla-light bg-tesla-black/70 rounded hover:bg-tesla-black transition-colors"
-            title="Open Project (.twrap)"
+            className="px-2 sm:px-3 py-1.5 text-xs font-medium text-tesla-light bg-tesla-black/70 rounded hover:bg-tesla-black transition-colors relative group"
           >
             Open
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Open Project (.twrap)
+            </div>
           </button>
           <button
             onClick={handleSaveProject}
-            className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+            className={`px-2 sm:px-3 py-1.5 text-xs font-medium rounded transition-colors relative group ${
               isDirty 
                 ? 'text-white bg-tesla-red hover:bg-tesla-red/80' 
                 : 'text-tesla-light bg-tesla-black/70 hover:bg-tesla-black'
             }`}
-            title="Save Project"
           >
             Save
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Save Project
+            </div>
           </button>
           {/* Hidden file inputs */}
           <input
@@ -339,22 +345,26 @@ export const Toolbar = ({ stageRef, onOpen3DPreview }: ToolbarProps) => {
           <button
             onClick={undo}
             disabled={!canUndo}
-            className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Undo (Ctrl+Z)"
+            className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed relative group"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Undo <span className="text-tesla-gray">(Ctrl+Z)</span>
+            </div>
           </button>
           <button
             onClick={redo}
             disabled={!canRedo}
-            className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Redo (Ctrl+Y)"
+            className="btn-icon disabled:opacity-30 disabled:cursor-not-allowed relative group"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
             </svg>
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Redo <span className="text-tesla-gray">(Ctrl+Y)</span>
+            </div>
           </button>
         </div>
 
@@ -391,12 +401,14 @@ export const Toolbar = ({ stageRef, onOpen3DPreview }: ToolbarProps) => {
           <div className="relative z-[100]" ref={infoDropdownRef}>
             <button
               onClick={() => setIsInfoDropdownOpen(!isInfoDropdownOpen)}
-              className="btn-icon"
-              title="Information and support"
+              className="btn-icon relative group"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <div className="absolute right-full mr-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                Information and support
+              </div>
             </button>
             
             {/* Dropdown Menu */}
@@ -441,23 +453,27 @@ export const Toolbar = ({ stageRef, onOpen3DPreview }: ToolbarProps) => {
           <button
             onClick={onOpen3DPreview}
             disabled
-            className="btn-secondary flex items-center gap-1 sm:gap-2 opacity-50 cursor-not-allowed px-2 sm:px-4"
-            title="Coming Soon"
+            className="btn-secondary flex items-center gap-1 sm:gap-2 opacity-50 cursor-not-allowed px-2 sm:px-4 relative group"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
             <span className="hidden sm:inline">3D Preview</span>
+            <div className="absolute right-full mr-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Coming Soon
+            </div>
           </button>
           <button
             onClick={handleExport}
-            className="btn-primary flex items-center gap-1 sm:gap-2 px-2 sm:px-4"
-            title="Export PNG"
+            className="btn-primary flex items-center gap-1 sm:gap-2 px-2 sm:px-4 relative group"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             <span className="hidden sm:inline">Export PNG</span>
+            <div className="absolute right-full mr-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+              Export PNG
+            </div>
           </button>
             {/* Profile Menu (far right) */}
             <ProfileMenu />

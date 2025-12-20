@@ -1,104 +1,52 @@
 import { useEditorStore } from './state/useEditorStore';
-import { useEffect } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
+import { 
+  ChevronDown, 
+  Move, 
+  Palette, 
+  Type, 
+  Square, 
+  Circle, 
+  Image, 
+  Minus, 
+  Star,
+  Paintbrush,
+  Droplet,
+  RotateCw,
+  Maximize2,
+  Eye,
+  Layers
+} from 'lucide-react';
 
 // Comprehensive font list organized by category
 const fontCategories = {
   'Sans Serif': [
-    'Arial',
-    'Helvetica',
-    'Verdana',
-    'Tahoma',
-    'Trebuchet MS',
-    'Segoe UI',
-    'Open Sans',
-    'Roboto',
-    'Lato',
-    'Montserrat',
-    'Poppins',
-    'Nunito',
-    'Raleway',
-    'Inter',
-    'Source Sans Pro',
-    'Ubuntu',
-    'Oswald',
-    'Quicksand',
-    'Rubik',
-    'Work Sans',
-    'Fira Sans',
-    'Barlow',
-    'DM Sans',
-    'Manrope',
-    'Outfit',
+    'Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Segoe UI',
+    'Open Sans', 'Roboto', 'Lato', 'Montserrat', 'Poppins', 'Nunito',
+    'Raleway', 'Inter', 'Source Sans Pro', 'Ubuntu', 'Oswald', 'Quicksand',
+    'Rubik', 'Work Sans', 'Fira Sans', 'Barlow', 'DM Sans', 'Manrope', 'Outfit',
   ],
   'Serif': [
-    'Times New Roman',
-    'Georgia',
-    'Palatino Linotype',
-    'Book Antiqua',
-    'Garamond',
-    'Playfair Display',
-    'Merriweather',
-    'Lora',
-    'PT Serif',
-    'Noto Serif',
-    'Libre Baskerville',
-    'Crimson Text',
-    'Bitter',
-    'Cormorant Garamond',
-    'EB Garamond',
-    'Spectral',
-    'Source Serif Pro',
+    'Times New Roman', 'Georgia', 'Palatino Linotype', 'Book Antiqua',
+    'Garamond', 'Playfair Display', 'Merriweather', 'Lora', 'PT Serif',
+    'Noto Serif', 'Libre Baskerville', 'Crimson Text', 'Bitter',
+    'Cormorant Garamond', 'EB Garamond', 'Spectral', 'Source Serif Pro',
   ],
   'Display': [
-    'Impact',
-    'Anton',
-    'Bebas Neue',
-    'Righteous',
-    'Alfa Slab One',
-    'Russo One',
-    'Black Ops One',
-    'Bangers',
-    'Bungee',
-    'Permanent Marker',
-    'Orbitron',
-    'Press Start 2P',
-    'Audiowide',
-    'Racing Sans One',
-    'Teko',
-    'Kanit',
-    'Staatliches',
-    'Bowlby One SC',
+    'Impact', 'Anton', 'Bebas Neue', 'Righteous', 'Alfa Slab One', 'Russo One',
+    'Black Ops One', 'Bangers', 'Bungee', 'Permanent Marker', 'Orbitron',
+    'Press Start 2P', 'Audiowide', 'Racing Sans One', 'Teko', 'Kanit',
+    'Staatliches', 'Bowlby One SC',
   ],
   'Handwriting': [
-    'Comic Sans MS',
-    'Brush Script MT',
-    'Pacifico',
-    'Dancing Script',
-    'Satisfy',
-    'Caveat',
-    'Indie Flower',
-    'Sacramento',
-    'Great Vibes',
-    'Kaushan Script',
-    'Lobster',
-    'Lobster Two',
-    'Courgette',
-    'Cookie',
-    'Allura',
-    'Alex Brush',
+    'Comic Sans MS', 'Brush Script MT', 'Pacifico', 'Dancing Script', 'Satisfy',
+    'Caveat', 'Indie Flower', 'Sacramento', 'Great Vibes', 'Kaushan Script',
+    'Lobster', 'Lobster Two', 'Courgette', 'Cookie', 'Allura', 'Alex Brush',
   ],
   'Monospace': [
-    'Courier New',
-    'Consolas',
-    'Monaco',
-    'Lucida Console',
-    'Roboto Mono',
-    'Source Code Pro',
-    'Fira Code',
-    'JetBrains Mono',
-    'IBM Plex Mono',
-    'Space Mono',
-    'Inconsolata',
+    'Courier New', 'Consolas', 'Monaco', 'Lucida Console', 'Roboto Mono',
+    'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'IBM Plex Mono',
+    'Space Mono', 'Inconsolata',
   ],
 };
 
@@ -117,7 +65,6 @@ const googleFonts = [
   'JetBrains Mono', 'IBM Plex Mono', 'Space Mono', 'Inconsolata',
 ];
 
-// Function to load Google Fonts
 const loadGoogleFonts = () => {
   const link = document.getElementById('google-fonts-link');
   if (!link) {
@@ -130,243 +77,433 @@ const loadGoogleFonts = () => {
   }
 };
 
-// Fill settings component (only shows Fill Color)
+// ============================================================================
+// REUSABLE UI COMPONENTS
+// ============================================================================
+
+interface CollapsibleSectionProps {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}
+
+const CollapsibleSection = ({ title, icon, children, defaultOpen = true }: CollapsibleSectionProps) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <div className="border border-tesla-dark/30 rounded-xl overflow-hidden bg-tesla-black/20">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-tesla-dark/20 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-tesla-gray">{icon}</span>
+          <span className="text-sm font-medium text-tesla-light">{title}</span>
+        </div>
+        <ChevronDown 
+          className={`w-4 h-4 text-tesla-gray transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+        />
+      </button>
+      <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="px-4 pb-4 pt-1 space-y-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface ColorPickerProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const ColorPicker = ({ label, value, onChange }: ColorPickerProps) => (
+  <div className="space-y-2">
+    <label className="text-xs font-medium text-tesla-gray">{label}</label>
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+          aria-label={label}
+          title={label}
+        />
+        <div 
+          className="w-10 h-10 rounded-lg border-2 border-tesla-dark/50 shadow-inner cursor-pointer hover:border-tesla-gray/50 transition-colors"
+          style={{ backgroundColor: value }}
+        />
+      </div>
+      <input
+        type="text"
+        value={value.toUpperCase()}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-3 py-2.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-tesla-red/40 focus:border-tesla-red/40 transition-all"
+        aria-label={`${label} hex value`}
+        placeholder="#000000"
+      />
+    </div>
+  </div>
+);
+
+interface SliderControlProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (value: number) => void;
+  showInput?: boolean;
+  hint?: string;
+}
+
+const SliderControl = ({ label, value, min, max, step = 1, unit = '', onChange, showInput = false, hint }: SliderControlProps) => {
+  const percentage = ((value - min) / (max - min)) * 100;
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-tesla-gray">{label}</label>
+        <span className="text-xs font-medium text-tesla-light bg-tesla-dark/40 px-2 py-0.5 rounded-md">
+          {value}{unit}
+        </span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 h-2">
+          <div className="absolute inset-0 bg-tesla-dark/60 rounded-full" />
+          <div 
+            className="absolute left-0 top-0 h-full bg-gradient-to-r from-tesla-red/80 to-tesla-red rounded-full transition-all"
+            style={{ width: `${percentage}%` }}
+          />
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            aria-label={label}
+            title={`${label}: ${value}${unit}`}
+          />
+          <div 
+            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-tesla-red transition-all pointer-events-none"
+            style={{ left: `calc(${percentage}% - 8px)` }}
+          />
+        </div>
+        {showInput && (
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value) || min)}
+            className="w-16 px-2 py-1.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light text-center focus:outline-none focus:ring-2 focus:ring-tesla-red/40 transition-all"
+            aria-label={`${label} value`}
+            title={label}
+          />
+        )}
+      </div>
+      {hint && <p className="text-xs text-tesla-dark">{hint}</p>}
+    </div>
+  );
+};
+
+interface NumberInputProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}
+
+const NumberInput = ({ label, value, onChange, min, max, step = 1, unit }: NumberInputProps) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-medium text-tesla-gray">{label}</label>
+    <div className="relative">
+      <input
+        type="number"
+        value={Math.round(value * 100) / 100}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        min={min}
+        max={max}
+        step={step}
+        className="w-full px-3 py-2.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/40 focus:border-tesla-red/40 transition-all pr-8"
+        aria-label={label}
+        title={label}
+        placeholder="0"
+      />
+      {unit && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tesla-dark">{unit}</span>
+      )}
+    </div>
+  </div>
+);
+
+interface SelectInputProps {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}
+
+const SelectInput = ({ label, value, options, onChange }: SelectInputProps) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-medium text-tesla-gray">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/40 focus:border-tesla-red/40 transition-all appearance-none cursor-pointer"
+      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1.25rem' }}
+      aria-label={label}
+      title={label}
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
+);
+
+interface ToggleButtonGroupProps {
+  label: string;
+  value: string;
+  options: { value: string; label: string; icon?: ReactNode }[];
+  onChange: (value: string) => void;
+}
+
+const ToggleButtonGroup = ({ label, value, options, onChange }: ToggleButtonGroupProps) => (
+  <div className="space-y-1.5">
+    <label className="text-xs font-medium text-tesla-gray">{label}</label>
+    <div className="flex gap-1 p-1 bg-tesla-black/40 rounded-lg">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`flex-1 px-3 py-2 text-xs font-medium rounded-md transition-all ${
+            value === opt.value 
+              ? 'bg-tesla-red text-white shadow-sm' 
+              : 'text-tesla-gray hover:text-tesla-light hover:bg-tesla-dark/30'
+          }`}
+        >
+          {opt.icon || opt.label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+// ============================================================================
+// FILL SETTINGS PANEL
+// ============================================================================
+
 const FillSettingsPanel = () => {
   const { brushSettings, setBrushSettings } = useEditorStore();
   
   return (
-    <div className="space-y-4">
-      <h3 className="text-xs font-semibold text-tesla-gray uppercase tracking-wider">
-        Fill Settings
-      </h3>
-      
-      {/* Fill Color */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Fill Color</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="color"
-            value={brushSettings.color}
-            onChange={(e) => setBrushSettings({ color: e.target.value })}
-            className="h-10 w-16 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-          />
-          <input
-            type="text"
-            value={brushSettings.color}
-            onChange={(e) => setBrushSettings({ color: e.target.value })}
-            className="flex-1 px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light"
-          />
-        </div>
-      </div>
-    </div>
+    <CollapsibleSection title="Fill Settings" icon={<Droplet className="w-4 h-4" />}>
+      <ColorPicker
+        label="Fill Color"
+        value={brushSettings.color}
+        onChange={(color) => setBrushSettings({ color })}
+      />
+    </CollapsibleSection>
   );
 };
 
-// Brush settings component
+// ============================================================================
+// BRUSH SETTINGS PANEL
+// ============================================================================
+
 const BrushSettingsPanel = () => {
   const { activeTool, brushSettings, setBrushSettings } = useEditorStore();
   
-  const getToolTitle = () => {
-    return 'Brush';
-  };
-  
   return (
-    <div className="space-y-4">
-      <h3 className="text-xs font-semibold text-tesla-gray uppercase tracking-wider">
-        {getToolTitle()} Settings
-      </h3>
-      
-      {/* Size */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Size</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="1"
-            max="500"
-            value={brushSettings.size}
-            onChange={(e) => setBrushSettings({ size: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <input
-            type="number"
-            min="1"
-            max="500"
-            value={brushSettings.size}
-            onChange={(e) => setBrushSettings({ size: parseInt(e.target.value) || 1 })}
-            className="w-16 px-2 py-1 bg-tesla-black/60 border border-tesla-dark/50 rounded text-sm text-tesla-light text-center"
-          />
-        </div>
-      </div>
-
-      {/* Color (only for brush) */}
-      {activeTool === 'brush' && (
-        <div>
-          <label className="block text-xs font-medium text-tesla-gray mb-1.5">Color</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={brushSettings.color}
-              onChange={(e) => setBrushSettings({ color: e.target.value })}
-              className="h-10 w-16 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-            />
-            <input
-              type="text"
-              value={brushSettings.color}
-              onChange={(e) => setBrushSettings({ color: e.target.value })}
-              className="flex-1 px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Hardness */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Hardness</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={brushSettings.hardness}
-            onChange={(e) => setBrushSettings({ hardness: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <span className="text-xs text-tesla-gray w-10 text-right">{brushSettings.hardness}%</span>
-        </div>
-      </div>
-
-      {/* Opacity */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Opacity</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={brushSettings.opacity}
-            onChange={(e) => setBrushSettings({ opacity: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <span className="text-xs text-tesla-gray w-10 text-right">{brushSettings.opacity}%</span>
-        </div>
-      </div>
-
-      {/* Flow */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Flow</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={brushSettings.flow}
-            onChange={(e) => setBrushSettings({ flow: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <span className="text-xs text-tesla-gray w-10 text-right">{brushSettings.flow}%</span>
-        </div>
-      </div>
-
-      {/* Spacing */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Spacing</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="1"
-            max="200"
-            value={brushSettings.spacing || 25}
-            onChange={(e) => setBrushSettings({ spacing: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <span className="text-xs text-tesla-gray w-10 text-right">{brushSettings.spacing || 25}%</span>
-        </div>
-        <div className="text-xs text-tesla-dark mt-1">
-          Controls brush stamp spacing along stroke
-        </div>
-      </div>
-
-      {/* Smoothing */}
-      <div>
-        <label className="block text-xs font-medium text-tesla-gray mb-1.5">Smoothing</label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={brushSettings.smoothing || 0}
-            onChange={(e) => setBrushSettings({ smoothing: parseInt(e.target.value) })}
-            className="flex-1 h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-          />
-          <span className="text-xs text-tesla-gray w-10 text-right">{brushSettings.smoothing || 0}%</span>
-        </div>
-        <div className="text-xs text-tesla-dark mt-1">
-          Reduces jitter for smoother strokes
-        </div>
-      </div>
-
-      {/* Blend Mode (only for brush) */}
-      {activeTool === 'brush' && (
-        <div>
-          <label className="block text-xs font-medium text-tesla-gray mb-1.5">Blend Mode</label>
-          <select
-            value={brushSettings.blendMode}
-            onChange={(e) => setBrushSettings({ blendMode: e.target.value as any })}
-            className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50"
-          >
-            <option value="normal">Normal</option>
-            <option value="multiply">Multiply</option>
-            <option value="screen">Screen</option>
-            <option value="overlay">Overlay</option>
-          </select>
-        </div>
-      )}
-
+    <CollapsibleSection title="Brush Settings" icon={<Paintbrush className="w-4 h-4" />}>
       {/* Brush Preview */}
-      <div className="pt-3 border-t border-tesla-dark/30">
-        <label className="block text-xs font-medium text-tesla-gray mb-2">Preview</label>
-        <div className="flex items-center justify-center bg-gradient-to-br from-tesla-dark/50 to-tesla-black/50 rounded-lg p-6 h-24 relative overflow-hidden">
-          {/* Checkerboard background for transparency preview */}
-          <div 
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `
-                linear-gradient(45deg, #D7DCDD 25%, transparent 25%),
-                linear-gradient(-45deg, #D7DCDD 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #D7DCDD 75%),
-                linear-gradient(-45deg, transparent 75%, #D7DCDD 75%)
-              `,
-              backgroundSize: '8px 8px',
-              backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
-            }}
-          />
-          <div
-            className="rounded-full transition-all relative z-10"
-            style={{
-              width: Math.min(brushSettings.size / 3, 80),
-              height: Math.min(brushSettings.size / 3, 80),
-              backgroundColor: brushSettings.color,
-              opacity: brushSettings.opacity / 100,
-              boxShadow: brushSettings.hardness < 100 
-                ? `0 0 ${(100 - brushSettings.hardness) / 2}px ${brushSettings.color}`
-                : 'none',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-            }}
-          />
-        </div>
-        <div className="text-xs text-tesla-gray text-center mt-2">
-          {brushSettings.size}px • {brushSettings.hardness}% hard • {brushSettings.opacity}% opacity
-        </div>
+      <div className="flex items-center justify-center bg-gradient-to-br from-tesla-dark/30 to-tesla-black/30 rounded-xl p-6 h-24 relative overflow-hidden border border-tesla-dark/20">
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `linear-gradient(45deg, #D7DCDD 25%, transparent 25%), linear-gradient(-45deg, #D7DCDD 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #D7DCDD 75%), linear-gradient(-45deg, transparent 75%, #D7DCDD 75%)`,
+            backgroundSize: '8px 8px',
+            backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px',
+          }}
+        />
+        <div
+          className="rounded-full transition-all relative z-10"
+          style={{
+            width: Math.min(brushSettings.size / 3, 80),
+            height: Math.min(brushSettings.size / 3, 80),
+            backgroundColor: brushSettings.color,
+            opacity: brushSettings.opacity / 100,
+            boxShadow: brushSettings.hardness < 100 
+              ? `0 0 ${(100 - brushSettings.hardness) / 2}px ${brushSettings.color}`
+              : 'none',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        />
       </div>
-    </div>
+
+      <SliderControl
+        label="Size"
+        value={brushSettings.size}
+        min={1}
+        max={500}
+        unit="px"
+        onChange={(size) => setBrushSettings({ size })}
+        showInput
+      />
+
+      {activeTool === 'brush' && (
+        <ColorPicker
+          label="Color"
+          value={brushSettings.color}
+          onChange={(color) => setBrushSettings({ color })}
+        />
+      )}
+
+      <SliderControl
+        label="Hardness"
+        value={brushSettings.hardness}
+        min={0}
+        max={100}
+        unit="%"
+        onChange={(hardness) => setBrushSettings({ hardness })}
+      />
+
+      <SliderControl
+        label="Opacity"
+        value={brushSettings.opacity}
+        min={1}
+        max={100}
+        unit="%"
+        onChange={(opacity) => setBrushSettings({ opacity })}
+      />
+
+      <SliderControl
+        label="Flow"
+        value={brushSettings.flow}
+        min={1}
+        max={100}
+        unit="%"
+        onChange={(flow) => setBrushSettings({ flow })}
+      />
+
+      <SliderControl
+        label="Spacing"
+        value={brushSettings.spacing || 25}
+        min={1}
+        max={200}
+        unit="%"
+        onChange={(spacing) => setBrushSettings({ spacing })}
+        hint="Controls brush stamp spacing along stroke"
+      />
+
+      <SliderControl
+        label="Smoothing"
+        value={brushSettings.smoothing || 0}
+        min={0}
+        max={100}
+        unit="%"
+        onChange={(smoothing) => setBrushSettings({ smoothing })}
+        hint="Reduces jitter for smoother strokes"
+      />
+
+      {activeTool === 'brush' && (
+        <SelectInput
+          label="Blend Mode"
+          value={brushSettings.blendMode}
+          options={[
+            { value: 'normal', label: 'Normal' },
+            { value: 'multiply', label: 'Multiply' },
+            { value: 'screen', label: 'Screen' },
+            { value: 'overlay', label: 'Overlay' },
+          ]}
+          onChange={(blendMode) => setBrushSettings({ blendMode: blendMode as any })}
+        />
+      )}
+    </CollapsibleSection>
   );
 };
+
+// ============================================================================
+// TRANSFORM SECTION
+// ============================================================================
+
+interface TransformSectionProps {
+  x: number;
+  y: number;
+  rotation: number;
+  scaleX: number;
+  scaleY: number;
+  opacity: number;
+  onUpdate: (key: string, value: any) => void;
+}
+
+const TransformSection = ({ x, y, rotation, scaleX, scaleY, opacity, onUpdate }: TransformSectionProps) => (
+  <CollapsibleSection title="Transform" icon={<Move className="w-4 h-4" />}>
+    {/* Position */}
+    <div className="grid grid-cols-2 gap-3">
+      <NumberInput label="X Position" value={x} onChange={(v) => onUpdate('x', v)} unit="px" />
+      <NumberInput label="Y Position" value={y} onChange={(v) => onUpdate('y', v)} unit="px" />
+    </div>
+
+    {/* Size/Scale */}
+    <div className="grid grid-cols-2 gap-3">
+      <NumberInput label="Scale X" value={scaleX} onChange={(v) => onUpdate('scaleX', v)} step={0.1} />
+      <NumberInput label="Scale Y" value={scaleY} onChange={(v) => onUpdate('scaleY', v)} step={0.1} />
+    </div>
+
+    {/* Rotation */}
+    <div className="flex items-end gap-3">
+      <div className="flex-1">
+        <NumberInput label="Rotation" value={rotation} onChange={(v) => onUpdate('rotation', v)} unit="°" />
+      </div>
+      <div className="flex gap-1 pb-0.5">
+        {[-90, -45, 0, 45, 90].map((angle) => (
+          <button
+            key={angle}
+            onClick={() => onUpdate('rotation', angle)}
+            className={`w-8 h-8 text-xs font-medium rounded-lg transition-all ${
+              Math.round(rotation) === angle
+                ? 'bg-tesla-red text-white'
+                : 'bg-tesla-dark/40 text-tesla-gray hover:bg-tesla-dark/60 hover:text-tesla-light'
+            }`}
+          >
+            {angle}°
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Opacity */}
+    <SliderControl
+      label="Opacity"
+      value={Math.round(opacity * 100)}
+      min={0}
+      max={100}
+      unit="%"
+      onChange={(v) => onUpdate('opacity', v / 100)}
+    />
+  </CollapsibleSection>
+);
+
+// ============================================================================
+// MAIN PROPERTIES PANEL
+// ============================================================================
 
 export const PropertiesPanel = () => {
   const { layers, selectedLayerId, updateLayer, activeTool } = useEditorStore();
   
-  // Load Google Fonts on mount
   useEffect(() => {
     loadGoogleFonts();
   }, []);
@@ -375,30 +512,28 @@ export const PropertiesPanel = () => {
   const showBrushSettings = activeTool === 'brush';
   const showFillSettings = activeTool === 'fill';
 
+  // No layer selected state
   if (!selectedLayer) {
     return (
       <div className="h-full panel rounded-xl flex flex-col w-80 overflow-hidden shadow-lg">
         <div className="p-4 border-b border-tesla-dark/30">
           <h2 className="text-lg font-semibold text-tesla-light flex items-center gap-2">
-            <svg className="w-5 h-5 text-tesla-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
+            <Layers className="w-5 h-5 text-tesla-gray" />
             Properties
           </h2>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-thin space-y-4">
           {showFillSettings ? (
             <FillSettingsPanel />
           ) : showBrushSettings ? (
             <BrushSettingsPanel />
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center text-tesla-gray">
-                <svg className="w-16 h-16 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-                <p className="text-sm">No layer selected</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-20 h-20 rounded-2xl bg-tesla-dark/20 flex items-center justify-center mb-4">
+                <Layers className="w-10 h-10 text-tesla-dark/60" />
               </div>
+              <p className="text-sm text-tesla-gray mb-1">No layer selected</p>
+              <p className="text-xs text-tesla-dark">Select a layer to edit its properties</p>
             </div>
           )}
         </div>
@@ -410,555 +545,363 @@ export const PropertiesPanel = () => {
     updateLayer(selectedLayer.id, { [key]: value });
   };
 
+  // Get layer type icon
+  const getLayerIcon = () => {
+    switch (selectedLayer.type) {
+      case 'text': return <Type className="w-5 h-5" />;
+      case 'rect': return <Square className="w-5 h-5" />;
+      case 'circle': return <Circle className="w-5 h-5" />;
+      case 'image': return <Image className="w-5 h-5" />;
+      case 'line': return <Minus className="w-5 h-5" />;
+      case 'star': return <Star className="w-5 h-5" />;
+      case 'brush': return <Paintbrush className="w-5 h-5" />;
+      case 'fill': return <Droplet className="w-5 h-5" />;
+      default: return <Layers className="w-5 h-5" />;
+    }
+  };
+
   return (
     <div className="h-full panel rounded-xl flex flex-col w-80 overflow-hidden shadow-lg">
-        <div className="p-4 border-b border-tesla-dark/30">
-          <h2 className="text-lg font-semibold text-tesla-light flex items-center gap-2">
-            <svg className="w-5 h-5 text-tesla-gray" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-            </svg>
-            Properties
-          </h2>
-          <div className="text-sm text-tesla-gray mt-1 truncate">{selectedLayer.name}</div>
-        </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
-        {/* Fill Layer Properties (only Fill Color when Fill layer is selected) */}
-        {selectedLayer.type === 'fill' ? (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Fill</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Fill Color</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={selectedLayer.fill}
-                    onChange={(e) => updateProperty('fill', e.target.value)}
-                    className="h-10 w-16 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={selectedLayer.fill}
-                    onChange={(e) => updateProperty('fill', e.target.value)}
-                    className="flex-1 px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light"
-                  />
-                </div>
-              </div>
-            </div>
+      {/* Header */}
+      <div className="p-4 border-b border-tesla-dark/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-tesla-red/10 flex items-center justify-center text-tesla-red">
+            {getLayerIcon()}
           </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-semibold text-tesla-light truncate">{selectedLayer.name}</h2>
+            <p className="text-xs text-tesla-gray capitalize">{selectedLayer.type} Layer</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        {/* Tool Settings (when brush/fill tool active) */}
+        {showFillSettings && <FillSettingsPanel />}
+        {showBrushSettings && <BrushSettingsPanel />}
+
+        {/* Fill Layer - Simple view */}
+        {selectedLayer.type === 'fill' ? (
+          <CollapsibleSection title="Fill" icon={<Droplet className="w-4 h-4" />}>
+            <ColorPicker
+              label="Fill Color"
+              value={selectedLayer.fill}
+              onChange={(v) => updateProperty('fill', v)}
+            />
+          </CollapsibleSection>
         ) : (
           <>
-            {/* Fill Settings (shown when fill tool is active, but no layer selected) */}
-            {showFillSettings && (
-              <FillSettingsPanel />
-            )}
-            {/* Brush Settings (shown when brush tool is active) */}
-            {showBrushSettings && (
-              <BrushSettingsPanel />
-            )}
-            {/* Common Properties */}
-            <div>
-          <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Common</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-tesla-gray mb-1.5">Opacity</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={selectedLayer.opacity}
-                onChange={(e) => updateProperty('opacity', parseFloat(e.target.value))}
-                className="w-full h-2 bg-tesla-black rounded-lg appearance-none cursor-pointer accent-tesla-red"
-              />
-              <div className="text-xs text-tesla-dark mt-1 text-right">
-                {Math.round(selectedLayer.opacity * 100)}%
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">X</label>
-                <input
-                  type="number"
-                  value={Math.round(selectedLayer.x)}
-                  onChange={(e) => updateProperty('x', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Y</label>
-                <input
-                  type="number"
-                  value={Math.round(selectedLayer.y)}
-                  onChange={(e) => updateProperty('y', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-tesla-gray mb-1.5">Rotation</label>
-              <input
-                type="number"
-                value={Math.round(selectedLayer.rotation)}
-                onChange={(e) => updateProperty('rotation', parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Scale X</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={selectedLayer.scaleX}
-                  onChange={(e) => updateProperty('scaleX', parseFloat(e.target.value) || 1)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Scale Y</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={selectedLayer.scaleY}
-                  onChange={(e) => updateProperty('scaleY', parseFloat(e.target.value) || 1)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+            {/* Text Properties - shown FIRST for text layers */}
+            {selectedLayer.type === 'text' && (
+              <CollapsibleSection title="Text" icon={<Type className="w-4 h-4" />}>
+                {/* Text Content */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-tesla-gray">Content</label>
+                  <textarea
+                    value={selectedLayer.text}
+                    onChange={(e) => updateProperty('text', e.target.value)}
+                    className="w-full px-3 py-2.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-tesla-red/40 focus:border-tesla-red/40 transition-all resize-none"
+                    rows={3}
+                    aria-label="Text content"
+                    placeholder="Enter your text..."
+                  />
+                </div>
 
-        {/* Type-specific Properties */}
-        {selectedLayer.type === 'text' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Text</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Text</label>
-                <textarea
-                  value={selectedLayer.text}
-                  onChange={(e) => updateProperty('text', e.target.value)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all resize-none"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Font Size</label>
-                <input
-                  type="number"
+                {/* Font Family with Preview */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-tesla-gray">Font Family</label>
+                  <select
+                    value={selectedLayer.fontFamily}
+                    onChange={(e) => updateProperty('fontFamily', e.target.value)}
+                    className="w-full px-3 py-2.5 bg-tesla-black/50 border border-tesla-dark/40 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/40 transition-all"
+                    style={{ fontFamily: selectedLayer.fontFamily }}
+                    aria-label="Font family"
+                    title="Font family"
+                  >
+                    {Object.entries(fontCategories).map(([category, fonts]) => (
+                      <optgroup key={category} label={category}>
+                        {fonts.map((font) => (
+                          <option key={font} value={font} style={{ fontFamily: font }}>
+                            {font}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <div 
+                    className="p-3 bg-tesla-dark/20 rounded-lg text-center border border-tesla-dark/20"
+                    style={{ fontFamily: selectedLayer.fontFamily, fontSize: '16px' }}
+                  >
+                    <span className="text-tesla-light">The quick brown fox</span>
+                  </div>
+                </div>
+
+                {/* Font Size */}
+                <SliderControl
+                  label="Font Size"
                   value={selectedLayer.fontSize}
-                  onChange={(e) => updateProperty('fontSize', parseInt(e.target.value) || 12)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
+                  min={8}
+                  max={200}
+                  unit="px"
+                  onChange={(v) => updateProperty('fontSize', v)}
+                  showInput
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Font Family</label>
-                <select
-                  value={selectedLayer.fontFamily}
-                  onChange={(e) => updateProperty('fontFamily', e.target.value)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  style={{ fontFamily: selectedLayer.fontFamily }}
-                >
-                  {Object.entries(fontCategories).map(([category, fonts]) => (
-                    <optgroup key={category} label={category}>
-                      {fonts.map((font) => (
-                        <option key={font} value={font} style={{ fontFamily: font }}>
-                          {font}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                {/* Font preview */}
-                <div 
-                  className="mt-2 p-3 bg-tesla-black/40 rounded-lg text-center text-tesla-light"
-                  style={{ fontFamily: selectedLayer.fontFamily, fontSize: '18px' }}
-                >
-                  {selectedLayer.fontFamily}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Color</label>
-                <input
-                  type="color"
+
+                {/* Text Color */}
+                <ColorPicker
+                  label="Text Color"
                   value={selectedLayer.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
+                  onChange={(v) => updateProperty('fill', v)}
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Align</label>
-                  <select
+
+                {/* Alignment */}
+                <div className="grid grid-cols-2 gap-3">
+                  <ToggleButtonGroup
+                    label="Horizontal"
                     value={selectedLayer.align}
-                    onChange={(e) => updateProperty('align', e.target.value as any)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Vertical Align</label>
-                  <select
+                    options={[
+                      { value: 'left', label: 'L' },
+                      { value: 'center', label: 'C' },
+                      { value: 'right', label: 'R' },
+                    ]}
+                    onChange={(v) => updateProperty('align', v)}
+                  />
+                  <ToggleButtonGroup
+                    label="Vertical"
                     value={selectedLayer.verticalAlign}
-                    onChange={(e) => updateProperty('verticalAlign', e.target.value as any)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  >
-                    <option value="top">Top</option>
-                    <option value="middle">Middle</option>
-                    <option value="bottom">Bottom</option>
-                  </select>
+                    options={[
+                      { value: 'top', label: 'T' },
+                      { value: 'middle', label: 'M' },
+                      { value: 'bottom', label: 'B' },
+                    ]}
+                    onChange={(v) => updateProperty('verticalAlign', v)}
+                  />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Font Style</label>
-                  <select
+
+                {/* Style */}
+                <div className="grid grid-cols-2 gap-3">
+                  <SelectInput
+                    label="Style"
                     value={selectedLayer.fontStyle}
-                    onChange={(e) => updateProperty('fontStyle', e.target.value as any)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="italic">Italic</option>
-                    <option value="bold">Bold</option>
-                    <option value="bold italic">Bold Italic</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Decoration</label>
-                  <select
+                    options={[
+                      { value: 'normal', label: 'Normal' },
+                      { value: 'italic', label: 'Italic' },
+                      { value: 'bold', label: 'Bold' },
+                      { value: 'bold italic', label: 'Bold Italic' },
+                    ]}
+                    onChange={(v) => updateProperty('fontStyle', v)}
+                  />
+                  <SelectInput
+                    label="Decoration"
                     value={selectedLayer.textDecoration}
-                    onChange={(e) => updateProperty('textDecoration', e.target.value as any)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  >
-                    <option value="none">None</option>
-                    <option value="underline">Underline</option>
-                    <option value="line-through">Line Through</option>
-                  </select>
+                    options={[
+                      { value: 'none', label: 'None' },
+                      { value: 'underline', label: 'Underline' },
+                      { value: 'line-through', label: 'Strikethrough' },
+                    ]}
+                    onChange={(v) => updateProperty('textDecoration', v)}
+                  />
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
+              </CollapsibleSection>
+            )}
 
-        {selectedLayer.type === 'rect' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Rectangle</h3>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Width</label>
-                  <input
-                    type="number"
-                    value={Math.round(selectedLayer.width)}
-                    onChange={(e) => updateProperty('width', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
+            {/* Rectangle Properties */}
+            {selectedLayer.type === 'rect' && (
+              <CollapsibleSection title="Rectangle" icon={<Square className="w-4 h-4" />}>
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberInput label="Width" value={selectedLayer.width} onChange={(v) => updateProperty('width', v)} unit="px" />
+                  <NumberInput label="Height" value={selectedLayer.height} onChange={(v) => updateProperty('height', v)} unit="px" />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Height</label>
-                  <input
-                    type="number"
-                    value={Math.round(selectedLayer.height)}
-                    onChange={(e) => updateProperty('height', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Fill</label>
-                <input
-                  type="color"
-                  value={selectedLayer.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke</label>
-                <input
-                  type="color"
-                  value={selectedLayer.stroke || '#000000'}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke Width</label>
-                  <input
-                    type="number"
-                    value={selectedLayer.strokeWidth || 0}
-                    onChange={(e) => updateProperty('strokeWidth', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Corner Radius</label>
-                  <input
-                    type="number"
-                    value={selectedLayer.cornerRadius || 0}
-                    onChange={(e) => updateProperty('cornerRadius', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {selectedLayer.type === 'circle' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Circle</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Radius</label>
-                <input
-                  type="number"
-                  value={Math.round(selectedLayer.radius)}
-                  onChange={(e) => updateProperty('radius', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Fill</label>
-                <input
-                  type="color"
-                  value={selectedLayer.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke</label>
-                <input
-                  type="color"
-                  value={selectedLayer.stroke || '#000000'}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke Width</label>
-                <input
-                  type="number"
-                  value={selectedLayer.strokeWidth || 0}
-                  onChange={(e) => updateProperty('strokeWidth', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-        )}
+                <ColorPicker label="Fill" value={selectedLayer.fill} onChange={(v) => updateProperty('fill', v)} />
+                
+                <ColorPicker label="Stroke" value={selectedLayer.stroke || '#000000'} onChange={(v) => updateProperty('stroke', v)} />
 
-        {selectedLayer.type === 'image' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Image</h3>
-            <div className="space-y-3">
-              <div className="text-xs text-tesla-gray bg-tesla-black/40 p-3 rounded-lg">
-                <div className="font-medium text-tesla-light mb-1">File</div>
-                <div className="truncate">{selectedLayer.name}</div>
-              </div>
-              {selectedLayer.image && (
-                <div className="text-xs text-tesla-gray bg-tesla-black/40 p-3 rounded-lg">
-                  <div className="font-medium text-tesla-light mb-1">Dimensions</div>
-                  <div>{selectedLayer.image.width} × {selectedLayer.image.height}px</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberInput label="Stroke Width" value={selectedLayer.strokeWidth || 0} onChange={(v) => updateProperty('strokeWidth', v)} unit="px" />
+                  <NumberInput label="Corner Radius" value={selectedLayer.cornerRadius || 0} onChange={(v) => updateProperty('cornerRadius', v)} unit="px" />
                 </div>
-              )}
-              <div className="pt-2 border-t border-tesla-dark/30">
-                <label className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={selectedLayer.useTemplateMask || false}
-                    onChange={(e) => updateProperty('useTemplateMask', e.target.checked)}
-                    className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50 focus:ring-offset-0"
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-sm text-tesla-light group-hover:text-white transition-colors">
-                      Use Template Mask
-                    </span>
-                    <span className="text-xs text-tesla-dark">
-                      Clip image to vehicle template shape
-                    </span>
+              </CollapsibleSection>
+            )}
+
+            {/* Circle Properties */}
+            {selectedLayer.type === 'circle' && (
+              <CollapsibleSection title="Circle" icon={<Circle className="w-4 h-4" />}>
+                <NumberInput label="Radius" value={selectedLayer.radius} onChange={(v) => updateProperty('radius', v)} unit="px" />
+                
+                <ColorPicker label="Fill" value={selectedLayer.fill} onChange={(v) => updateProperty('fill', v)} />
+                
+                <ColorPicker label="Stroke" value={selectedLayer.stroke || '#000000'} onChange={(v) => updateProperty('stroke', v)} />
+
+                <NumberInput label="Stroke Width" value={selectedLayer.strokeWidth || 0} onChange={(v) => updateProperty('strokeWidth', v)} unit="px" />
+              </CollapsibleSection>
+            )}
+
+            {/* Image Properties */}
+            {selectedLayer.type === 'image' && (
+              <CollapsibleSection title="Image" icon={<Image className="w-4 h-4" />}>
+                <div className="space-y-3">
+                  <div className="p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20">
+                    <div className="text-xs text-tesla-gray mb-1">File</div>
+                    <div className="text-sm text-tesla-light truncate">{selectedLayer.name}</div>
                   </div>
-                </label>
-                {selectedLayer.useTemplateMask && (
-                  <div className="mt-2 p-2 bg-tesla-dark/20 rounded-lg border border-tesla-dark/30">
-                    <p className="text-xs text-tesla-gray">
-                      <span className="text-yellow-500">💡</span> Transform handles disabled. Use position/scale controls above to adjust the image.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                  
+                  {selectedLayer.image && (
+                    <div className="p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20">
+                      <div className="text-xs text-tesla-gray mb-1">Dimensions</div>
+                      <div className="text-sm text-tesla-light">
+                        {selectedLayer.image.width} × {selectedLayer.image.height}px
+                      </div>
+                    </div>
+                  )}
 
-        {selectedLayer.type === 'line' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Line</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke Color</label>
-                <input
-                  type="color"
-                  value={selectedLayer.stroke}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke Width</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
+                  <div className="pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20 hover:border-tesla-dark/40 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedLayer.useTemplateMask || false}
+                        onChange={(e) => updateProperty('useTemplateMask', e.target.checked)}
+                        className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50 focus:ring-offset-0"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm text-tesla-light block">Use Template Mask</span>
+                        <span className="text-xs text-tesla-dark">Clip image to vehicle shape</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {selectedLayer.useTemplateMask && (
+                    <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                      <p className="text-xs text-yellow-400">
+                        💡 Transform handles disabled. Use position/scale controls to adjust.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Line Properties */}
+            {selectedLayer.type === 'line' && (
+              <CollapsibleSection title="Line" icon={<Minus className="w-4 h-4" />}>
+                <ColorPicker label="Stroke Color" value={selectedLayer.stroke} onChange={(v) => updateProperty('stroke', v)} />
+                
+                <SliderControl
+                  label="Stroke Width"
                   value={selectedLayer.strokeWidth}
-                  onChange={(e) => updateProperty('strokeWidth', parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
+                  min={1}
+                  max={100}
+                  unit="px"
+                  onChange={(v) => updateProperty('strokeWidth', v)}
+                  showInput
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Line Cap</label>
-                <select
-                  value={selectedLayer.lineCap || 'round'}
-                  onChange={(e) => updateProperty('lineCap', e.target.value as any)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                >
-                  <option value="butt">Butt</option>
-                  <option value="round">Round</option>
-                  <option value="square">Square</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Line Join</label>
-                <select
-                  value={selectedLayer.lineJoin || 'round'}
-                  onChange={(e) => updateProperty('lineJoin', e.target.value as any)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                >
-                  <option value="miter">Miter</option>
-                  <option value="round">Round</option>
-                  <option value="bevel">Bevel</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedLayer.arrowStart || false}
-                    onChange={(e) => updateProperty('arrowStart', e.target.checked)}
-                    className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50"
-                  />
-                  <span className="text-xs text-tesla-gray">Arrow Start</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedLayer.arrowEnd || false}
-                    onChange={(e) => updateProperty('arrowEnd', e.target.checked)}
-                    className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50"
-                  />
-                  <span className="text-xs text-tesla-gray">Arrow End</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {selectedLayer.type === 'star' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Star</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Points</label>
-                <input
-                  type="number"
-                  min="3"
-                  max="50"
+                <div className="grid grid-cols-2 gap-3">
+                  <SelectInput
+                    label="Line Cap"
+                    value={selectedLayer.lineCap || 'round'}
+                    options={[
+                      { value: 'butt', label: 'Butt' },
+                      { value: 'round', label: 'Round' },
+                      { value: 'square', label: 'Square' },
+                    ]}
+                    onChange={(v) => updateProperty('lineCap', v)}
+                  />
+                  <SelectInput
+                    label="Line Join"
+                    value={selectedLayer.lineJoin || 'round'}
+                    options={[
+                      { value: 'miter', label: 'Miter' },
+                      { value: 'round', label: 'Round' },
+                      { value: 'bevel', label: 'Bevel' },
+                    ]}
+                    onChange={(v) => updateProperty('lineJoin', v)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-tesla-gray">Arrows</label>
+                  <div className="flex gap-2">
+                    <label className="flex-1 flex items-center gap-2 cursor-pointer p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20 hover:border-tesla-dark/40 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedLayer.arrowStart || false}
+                        onChange={(e) => updateProperty('arrowStart', e.target.checked)}
+                        className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50"
+                      />
+                      <span className="text-xs text-tesla-light">Start</span>
+                    </label>
+                    <label className="flex-1 flex items-center gap-2 cursor-pointer p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20 hover:border-tesla-dark/40 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedLayer.arrowEnd || false}
+                        onChange={(e) => updateProperty('arrowEnd', e.target.checked)}
+                        className="w-4 h-4 rounded border-tesla-dark/50 bg-tesla-black/60 text-tesla-red focus:ring-tesla-red/50"
+                      />
+                      <span className="text-xs text-tesla-light">End</span>
+                    </label>
+                  </div>
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Star Properties */}
+            {selectedLayer.type === 'star' && (
+              <CollapsibleSection title="Star" icon={<Star className="w-4 h-4" />}>
+                <SliderControl
+                  label="Points"
                   value={selectedLayer.numPoints}
-                  onChange={(e) => updateProperty('numPoints', parseInt(e.target.value) || 5)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
+                  min={3}
+                  max={50}
+                  onChange={(v) => updateProperty('numPoints', Math.round(v))}
+                  showInput
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Inner Radius</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={Math.round(selectedLayer.innerRadius)}
-                    onChange={(e) => updateProperty('innerRadius', parseFloat(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-tesla-gray mb-1.5">Outer Radius</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={Math.round(selectedLayer.outerRadius)}
-                    onChange={(e) => updateProperty('outerRadius', parseFloat(e.target.value) || 1)}
-                    className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Fill</label>
-                <input
-                  type="color"
-                  value={selectedLayer.fill}
-                  onChange={(e) => updateProperty('fill', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke</label>
-                <input
-                  type="color"
-                  value={selectedLayer.stroke || '#000000'}
-                  onChange={(e) => updateProperty('stroke', e.target.value)}
-                  className="w-full h-10 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-tesla-gray mb-1.5">Stroke Width</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={selectedLayer.strokeWidth || 0}
-                  onChange={(e) => updateProperty('strokeWidth', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-tesla-black/60 border border-tesla-dark/50 rounded-lg text-sm text-tesla-light focus:outline-none focus:ring-2 focus:ring-tesla-red/50 focus:border-tesla-red/50 transition-all"
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
-        {selectedLayer.type === 'brush' && (
-          <div>
-            <h3 className="text-xs font-semibold mb-3 text-tesla-gray uppercase tracking-wider">Brush Layer</h3>
-            <div className="space-y-2">
-              <div className="text-xs text-tesla-gray bg-tesla-black/40 p-3 rounded-lg">
-                <div className="font-medium text-tesla-light mb-1">Strokes</div>
-                <div>{(selectedLayer as any).strokes?.length || 0} stroke(s)</div>
-              </div>
-              <button
-                onClick={() => updateProperty('strokes', [])}
-                className="w-full px-3 py-2 bg-tesla-red/20 border border-tesla-red/50 rounded-lg text-sm text-tesla-red hover:bg-tesla-red/30 transition-colors"
-              >
-                Clear All Strokes
-              </button>
-            </div>
-          </div>
-        )}
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberInput label="Inner Radius" value={selectedLayer.innerRadius} onChange={(v) => updateProperty('innerRadius', v)} unit="px" />
+                  <NumberInput label="Outer Radius" value={selectedLayer.outerRadius} onChange={(v) => updateProperty('outerRadius', v)} unit="px" />
+                </div>
+
+                <ColorPicker label="Fill" value={selectedLayer.fill} onChange={(v) => updateProperty('fill', v)} />
+                
+                <ColorPicker label="Stroke" value={selectedLayer.stroke || '#000000'} onChange={(v) => updateProperty('stroke', v)} />
+
+                <NumberInput label="Stroke Width" value={selectedLayer.strokeWidth || 0} onChange={(v) => updateProperty('strokeWidth', v)} unit="px" />
+              </CollapsibleSection>
+            )}
+
+            {/* Brush Layer Properties */}
+            {selectedLayer.type === 'brush' && (
+              <CollapsibleSection title="Brush Layer" icon={<Paintbrush className="w-4 h-4" />}>
+                <div className="p-3 bg-tesla-dark/20 rounded-lg border border-tesla-dark/20">
+                  <div className="text-xs text-tesla-gray mb-1">Strokes</div>
+                  <div className="text-sm text-tesla-light">
+                    {(selectedLayer as any).strokes?.length || 0} stroke(s)
+                  </div>
+                </div>
+                <button
+                  onClick={() => updateProperty('strokes', [])}
+                  className="w-full px-4 py-2.5 bg-red-500/10 border border-red-500/30 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                >
+                  Clear All Strokes
+                </button>
+              </CollapsibleSection>
+            )}
+
+            {/* Transform Section - Always last */}
+            <TransformSection
+              x={selectedLayer.x}
+              y={selectedLayer.y}
+              rotation={selectedLayer.rotation}
+              scaleX={selectedLayer.scaleX}
+              scaleY={selectedLayer.scaleY}
+              opacity={selectedLayer.opacity}
+              onUpdate={updateProperty}
+            />
           </>
         )}
       </div>
     </div>
   );
 };
-
