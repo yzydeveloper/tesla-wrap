@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getUserDesigns, loadProjectFromSupabase } from '../../utils/supabaseProjects';
 import type { SavedDesign } from '../../utils/supabaseProjects';
 import { useEditorStore } from '../state/useEditorStore';
+import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 import { X, Loader2, AlertCircle, FolderOpen } from 'lucide-react';
 
 interface OpenProjectDialogProps {
@@ -13,11 +14,13 @@ interface OpenProjectDialogProps {
 
 export function OpenProjectDialog({ isOpen, onClose, onProjectLoaded }: OpenProjectDialogProps) {
   const { user } = useAuth();
-  const { loadProject, setDesignId } = useEditorStore();
+  const { loadProject, setDesignId, isDirty } = useEditorStore();
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openingDesignId, setOpeningDesignId] = useState<string | null>(null);
+  const [pendingDesignId, setPendingDesignId] = useState<string | null>(null);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -39,12 +42,23 @@ export function OpenProjectDialog({ isOpen, onClose, onProjectLoaded }: OpenProj
   };
 
   const handleOpenDesign = async (design: SavedDesign) => {
-    setOpeningDesignId(design.id);
+    // Check for unsaved changes
+    if (isDirty) {
+      setPendingDesignId(design.id);
+      setShowUnsavedChangesDialog(true);
+      return;
+    }
+
+    await loadDesign(design.id);
+  };
+
+  const loadDesign = async (designId: string) => {
+    setOpeningDesignId(designId);
     setError(null);
     try {
-      const project = await loadProjectFromSupabase(design.id);
+      const project = await loadProjectFromSupabase(designId);
       await loadProject(project);
-      setDesignId(design.id);
+      setDesignId(designId);
       onProjectLoaded();
       onClose();
     } catch (err: any) {
@@ -52,6 +66,29 @@ export function OpenProjectDialog({ isOpen, onClose, onProjectLoaded }: OpenProj
     } finally {
       setOpeningDesignId(null);
     }
+  };
+
+  const handleUnsavedSave = () => {
+    setShowUnsavedChangesDialog(false);
+    // User needs to save manually first
+    // For now, just proceed with loading (they can save before opening)
+    if (pendingDesignId) {
+      loadDesign(pendingDesignId);
+      setPendingDesignId(null);
+    }
+  };
+
+  const handleUnsavedDiscard = () => {
+    setShowUnsavedChangesDialog(false);
+    if (pendingDesignId) {
+      loadDesign(pendingDesignId);
+      setPendingDesignId(null);
+    }
+  };
+
+  const handleUnsavedCancel = () => {
+    setShowUnsavedChangesDialog(false);
+    setPendingDesignId(null);
   };
 
   if (!isOpen) return null;
@@ -175,6 +212,14 @@ export function OpenProjectDialog({ isOpen, onClose, onProjectLoaded }: OpenProj
           )}
         </div>
       </div>
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        isOpen={showUnsavedChangesDialog}
+        onSave={handleUnsavedSave}
+        onDiscard={handleUnsavedDiscard}
+        onCancel={handleUnsavedCancel}
+      />
     </div>
   );
 }
