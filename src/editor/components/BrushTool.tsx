@@ -203,7 +203,7 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
         const layer = state.layers.find(l => l.id === currentLayerId.current);
         if (layer && layer.type === 'brush') {
           const brushLayer = layer as BrushLayer;
-          const { activeTool, brushSettings } = state;
+          const { brushSettings } = state;
           
           // Create preview stroke
           const previewStroke: BrushStroke = {
@@ -235,7 +235,7 @@ export const BrushTool = ({ stageRef }: BrushToolProps) => {
       const layer = state.layers.find(l => l.id === currentLayerId.current);
       
       if (layer && layer.type === 'brush' && currentPoints.current.length >= 4) {
-        const { activeTool, brushSettings } = state;
+        const { brushSettings } = state;
         
         // Create final stroke
         const finalStroke: BrushStroke = {
