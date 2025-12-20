@@ -6,9 +6,10 @@ interface TransformerWrapperProps {
   selectedLayerId: string | null;
   layers: any[];
   onTransformMove?: (node: any) => void;
+  activeTool?: string;
 }
 
-export const TransformerWrapper = ({ selectedLayerId, layers, onTransformMove }: TransformerWrapperProps) => {
+export const TransformerWrapper = ({ selectedLayerId, layers, onTransformMove, activeTool }: TransformerWrapperProps) => {
   const transformerRef = useRef<Konva.Transformer>(null);
   const transformMoveCallbackRef = useRef(onTransformMove);
 
@@ -26,6 +27,12 @@ export const TransformerWrapper = ({ selectedLayerId, layers, onTransformMove }:
     // Don't show transformer for line layers (they use endpoint handles instead)
     const selectedLayer = layers.find(l => l.id === selectedLayerId);
     if (selectedLayer?.type === 'line') {
+      transformerRef.current.nodes([]);
+      return;
+    }
+
+    // Don't show transformer when brush tool is active (only show for select/move tool)
+    if (activeTool === 'brush') {
       transformerRef.current.nodes([]);
       return;
     }
@@ -68,9 +75,12 @@ export const TransformerWrapper = ({ selectedLayerId, layers, onTransformMove }:
     } else {
       transformerRef.current.nodes([]);
     }
-  }, [selectedLayerId, layers]);
+  }, [selectedLayerId, layers, activeTool]);
 
   if (!selectedLayerId) return null;
+
+  // Don't show transformer when brush tool is active (only show for select/move tool)
+  if (activeTool === 'brush') return null;
 
   // Find the selected layer to check its type
   const selectedLayer = layers.find(l => l.id === selectedLayerId);

@@ -784,6 +784,7 @@ export const EditorCanvas = forwardRef<StageType | null, EditorCanvasProps>(({ o
               selectedLayerId={selectedLayerId} 
               layers={layers}
               onTransformMove={handleTransformMove}
+              activeTool={activeTool}
             />
             
             {/* Brush Cursor (on top of everything, not masked) */}
