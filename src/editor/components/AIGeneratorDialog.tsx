@@ -7,6 +7,7 @@ import { getUserCredits, deductCredit } from '../../utils/aiCredits';
 import type { UserCredits } from '../../utils/aiCredits';
 import { createCheckoutSession, CREDIT_PACKAGES, saveStripeReturnContext } from '../../utils/stripe';
 import { saveProjectToLocalStorage, saveUIState } from '../../utils/localStorageProject';
+import { supabase } from '../../lib/supabase';
 
 // Available AI models for generation
 // All models are text-to-image - mask is applied programmatically after generation
@@ -154,17 +155,8 @@ const PROMPT_SUGGESTIONS = [
   'Geometric sharp angular precise',
 ];
 
-// Replicate API via Vite proxy (to bypass CORS)
-const REPLICATE_API_BASE = '/api/replicate';
-
-// Get API key from environment variable
-const getReplicateApiKey = () => {
-  const key = import.meta.env.VITE_REPLICATE_API_KEY;
-  if (!key) {
-    console.error('VITE_REPLICATE_API_KEY environment variable is not set');
-  }
-  return key || '';
-};
+// Replicate API via Supabase Edge Function (secure, server-side)
+const REPLICATE_EDGE_FUNCTION = 'replicate-api';
 
 interface AIGeneratorDialogProps {
   isOpen: boolean;
@@ -273,6 +265,9 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
     }
   }, [isOpen]);
 
+  // Track previous user state to detect logout (not initial open)
+  const prevUserRef = useRef(user);
+  
   // Fetch credits when dialog opens and user is logged in
   useEffect(() => {
     if (isOpen && user) {
@@ -286,10 +281,12 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
           console.error('Error loading credits:', error);
           setLoadingCredits(false);
         });
-    } else if (!user) {
-      // If not logged in, close dialog
+    } else if (isOpen && !user && prevUserRef.current) {
+      // Only close if user was logged in and now logged out (not on initial open)
       onClose();
     }
+    // Update previous user reference
+    prevUserRef.current = user;
   }, [isOpen, user, onClose]);
 
   /**
@@ -401,29 +398,31 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
   };
 
   /**
-   * Poll for prediction completion
+   * Poll for prediction completion via Supabase Edge Function
    */
-  const pollPrediction = async (predictionId: string, token: string): Promise<ReplicatePrediction> => {
+  const pollPrediction = async (predictionId: string): Promise<ReplicatePrediction> => {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+
     const maxAttempts = 60; // 60 * 2s = 2 minutes max
     let attempts = 0;
 
     while (attempts < maxAttempts) {
-      const response = await fetchWithRetry(
-        `${REPLICATE_API_BASE}/v1/predictions/${predictionId}`,
+      // Use the Edge Function to poll prediction status
+      const { data, error } = await supabase.functions.invoke(
+        REPLICATE_EDGE_FUNCTION,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        },
-        2 // Less retries for polling
+          method: 'POST',
+          body: { action: 'poll', predictionId },
+        }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `API error: ${response.status}`);
+      if (error) {
+        throw new Error(error.message || `API error: ${error}`);
       }
 
-      const prediction: ReplicatePrediction = await response.json();
+      const prediction = data as ReplicatePrediction;
 
       if (prediction.status === 'succeeded') {
         return prediction;
@@ -454,8 +453,7 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
       return;
     }
 
-    const apiKey = getReplicateApiKey();
-    if (!apiKey) {
+    if (!supabase) {
       setState(prev => ({ ...prev, error: 'AI service is not configured. Please contact support.' }));
       return;
     }
@@ -496,16 +494,14 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
         hasTemplate: !!templateBase64,
       });
 
-      // Flux Schnell - fast text-to-image generation
-      const createResponse = await fetchWithRetry(
-        `${REPLICATE_API_BASE}/v1/models/${modelConfig.id}/predictions`,
+      // Flux Schnell - fast text-to-image generation via Supabase Edge Function
+      const { data: predictionData, error: createError } = await supabase.functions.invoke(
+        REPLICATE_EDGE_FUNCTION,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+          body: {
+            action: 'create',
+            model: modelConfig.id,
             input: {
               prompt: fullPrompt,
               num_outputs: numOutputs,
@@ -513,23 +509,25 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
               output_format: 'png',
               output_quality: 100,
             },
-          }),
-        },
-        5
+          },
+        }
       );
 
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json().catch(() => ({}));
-        if (createResponse.status === 401 || createResponse.status === 403) {
-          throw new Error('Invalid API key. Please check your Replicate API key.');
+      if (createError) {
+        if (createError.message?.includes('401') || createError.message?.includes('403')) {
+          throw new Error('AI service authentication failed. Please contact support.');
         }
-        throw new Error(errorData.detail || `API error: ${createResponse.status}`);
+        throw new Error(createError.message || 'Failed to create prediction');
       }
 
-      const prediction: ReplicatePrediction = await createResponse.json();
+      const prediction = predictionData as ReplicatePrediction;
+
+      if (!prediction || !prediction.id) {
+        throw new Error('Invalid response from AI service');
+      }
 
       // Poll for completion
-      const completedPrediction = await pollPrediction(prediction.id, apiKey);
+      const completedPrediction = await pollPrediction(prediction.id);
 
       if (!completedPrediction.output) {
         throw new Error('No images generated. Please try again.');

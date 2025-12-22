@@ -33,6 +33,7 @@ export const ToolsPanel = ({ openAIDialogOnMount, onAIDialogOpened }: ToolsPanel
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [showAITooltip, setShowAITooltip] = useState(false);
   const pendingAIOpenRef = useRef(false);
+  const loginSuccessRef = useRef(false); // Track if login succeeded (to not clear pending on close)
   const aiToolButtonRef = useRef<HTMLButtonElement>(null);
 
   // Show tooltip every time the editor opens (but not if opening AI dialog)
@@ -56,11 +57,15 @@ export const ToolsPanel = ({ openAIDialogOnMount, onAIDialogOpened }: ToolsPanel
   // Open AI dialog when user logs in and was trying to access it
   useEffect(() => {
     if (user && pendingAIOpenRef.current && !isLoginDialogOpen) {
-      // Wait a moment for auth state to fully propagate and login dialog to close
+      // User just logged in and was trying to access AI tool
+      // Open AI dialog after a brief delay for state to settle
       const timer = setTimeout(() => {
-        pendingAIOpenRef.current = false;
-        setIsAIGeneratorDialogOpen(true);
-      }, 500);
+        if (pendingAIOpenRef.current) {
+          pendingAIOpenRef.current = false;
+          loginSuccessRef.current = false;
+          setIsAIGeneratorDialogOpen(true);
+        }
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [user, isLoginDialogOpen]);
@@ -528,9 +533,16 @@ export const ToolsPanel = ({ openAIDialogOnMount, onAIDialogOpened }: ToolsPanel
         isOpen={isLoginDialogOpen}
         onClose={() => {
           setIsLoginDialogOpen(false);
-          pendingAIOpenRef.current = false;
+          // Only clear pending if user cancelled (not after successful login)
+          // loginSuccessRef tracks if onSuccess was just called
+          if (!loginSuccessRef.current) {
+            pendingAIOpenRef.current = false;
+          }
+          loginSuccessRef.current = false; // Reset for next time
         }}
         onSuccess={() => {
+          // Mark that login succeeded so onClose doesn't clear pending
+          loginSuccessRef.current = true;
           // Close login dialog - the useEffect will detect user change and open AI dialog
           setIsLoginDialogOpen(false);
         }}
