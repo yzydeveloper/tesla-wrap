@@ -19,6 +19,7 @@ import {
 import { AIGeneratorDialog } from './AIGeneratorDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginDialog } from '../../components/LoginDialog';
+import Tooltip from '@mui/material/Tooltip';
 
 interface ToolsPanelProps {
   openAIDialogOnMount?: boolean;
@@ -405,36 +406,53 @@ export const ToolsPanel = ({ openAIDialogOnMount, onAIDialogOpened }: ToolsPanel
       <div className="h-full panel rounded-xl flex flex-col w-16 overflow-hidden shadow-lg">
         {/* Tool Buttons */}
         <div className="flex-1 p-2 space-y-1.5 overflow-y-auto overflow-x-hidden scrollbar-thin">
-          {tools.map((tool) => (
-            <button
-              key={tool.id}
-              ref={tool.id === 'ai-textures' ? aiToolButtonRef : null}
-              onClick={() => {
-                handleToolSelect(tool.id);
-                if (tool.id === 'ai-textures' && showAITooltip) {
-                  handleDismissTooltip();
-                }
-              }}
-              className={`w-full p-2 rounded-lg transition-all duration-200 flex items-center justify-center relative group ${
-                tool.id === 'ai-textures'
-                  ? isAIGeneratorDialogOpen
-                    ? 'bg-blue-500/20 text-blue-400'
-                    : showAITooltip
-                    ? 'bg-blue-500/25 text-blue-400 ring-1 ring-blue-400/50'
-                    : 'text-tesla-gray hover:text-blue-400 hover:bg-blue-500/10'
-                  : activeTool === tool.id
-                  ? 'bg-tesla-red text-white shadow-md shadow-tesla-red/40'
-                  : 'text-tesla-gray hover:text-tesla-light hover:bg-tesla-dark/40'
-              }`}
-              title={`${tool.label} (${tool.shortcut})`}
-            >
-              {tool.icon}
-              {/* Tooltip */}
-              <div className="absolute left-full ml-3 px-3 py-1.5 bg-tesla-black/95 border border-tesla-dark/50 rounded-lg text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                {tool.label} <span className="text-tesla-gray">({tool.shortcut})</span>
-              </div>
-            </button>
-          ))}
+          {tools.map((tool) => {
+            // AI Textures tool uses custom tooltip, not MUI
+            if (tool.id === 'ai-textures') {
+              return (
+                <button
+                  key={tool.id}
+                  ref={aiToolButtonRef}
+                  onClick={() => {
+                    handleToolSelect(tool.id);
+                    if (showAITooltip) {
+                      handleDismissTooltip();
+                    }
+                  }}
+                  className={`w-full p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                    isAIGeneratorDialogOpen
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : showAITooltip
+                      ? 'bg-blue-500/25 text-blue-400 ring-1 ring-blue-400/50'
+                      : 'text-tesla-gray hover:text-blue-400 hover:bg-blue-500/10'
+                  }`}
+                >
+                  {tool.icon}
+                </button>
+              );
+            }
+            
+            // All other tools use MUI Tooltip
+            return (
+              <Tooltip 
+                key={tool.id}
+                title={`${tool.label} (${tool.shortcut})`} 
+                placement="right" 
+                arrow
+              >
+                <button
+                  onClick={() => handleToolSelect(tool.id)}
+                  className={`w-full p-2 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                    activeTool === tool.id
+                      ? 'bg-tesla-red text-white shadow-md shadow-tesla-red/40'
+                      : 'text-tesla-gray hover:text-tesla-light hover:bg-tesla-dark/40'
+                  }`}
+                >
+                  {tool.icon}
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
       </div>
 
