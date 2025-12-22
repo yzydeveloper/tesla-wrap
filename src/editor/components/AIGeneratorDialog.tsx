@@ -170,10 +170,15 @@ interface AIGeneratorDialogProps {
   onClose: () => void;
 }
 
+interface GeneratedImage {
+  original: string;  // Unmasked image for adding to canvas
+  preview: string;   // Masked image for preview
+}
+
 interface GenerationState {
   loading: boolean;
   error: string | null;
-  images: string[];
+  images: GeneratedImage[];
   selectedIndex: number | null;
 }
 
@@ -187,8 +192,10 @@ interface ReplicatePrediction {
 export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) => {
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState<AIStylePreset>('realistic');
-  const [numOutputs, setNumOutputs] = useState(4);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
+  
+  // Always generate 4 variations
+  const numOutputs = 4;
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [credits, setCredits] = useState<UserCredits | null>(null);
   const [loadingCredits, setLoadingCredits] = useState(false);
@@ -536,7 +543,7 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
         throw new Error('No images generated. Please try again.');
       }
 
-      // Process images - fetch and apply mask
+      // Process images - fetch and create both original and masked preview
       const processedImages = await Promise.all(
         outputUrls.map(async (url) => {
           try {
@@ -547,16 +554,21 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
             }
             const blob = await response.blob();
             
-            // Convert to data URL
-            const dataUrl = await new Promise<string>((resolve, reject) => {
+            // Convert to data URL (original unmasked image)
+            const originalDataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
               reader.onerror = reject;
               reader.readAsDataURL(blob);
             });
             
-            // Apply mask
-            return await applyMask(dataUrl);
+            // Apply mask for preview only
+            const previewDataUrl = await applyMask(originalDataUrl);
+            
+            return {
+              original: originalDataUrl,
+              preview: previewDataUrl,
+            };
           } catch (error) {
             console.error('Failed to process image:', error);
             return null;
@@ -564,7 +576,7 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
         })
       );
 
-      const validImages = processedImages.filter((img): img is string => img !== null);
+      const validImages = processedImages.filter((img): img is GeneratedImage => img !== null);
 
       if (validImages.length === 0) {
         throw new Error('Failed to process generated images. Please try again.');
@@ -608,15 +620,16 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
         error: errorMessage,
       }));
     }
-  }, [prompt, style, numOutputs, applyMask, templateBase64, user, credits, onClose]);
+  }, [prompt, style, applyMask, templateBase64, user, credits, onClose]);
 
   /**
-   * Add selected image as a texture layer
+   * Add selected image as a texture layer (uses original unmasked image for editing flexibility)
    */
   const handleAddToDesign = useCallback(async () => {
     if (state.selectedIndex === null || !state.images[state.selectedIndex]) return;
 
-    const imageUrl = state.images[state.selectedIndex];
+    // Use original (unmasked) image so user can move/adjust it in the editor
+    const imageUrl = state.images[state.selectedIndex].original;
     
     try {
       // Load the image to get the HTMLImageElement
@@ -625,7 +638,7 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
       // Add as a texture layer
       addLayer({
         type: 'texture',
-        name: `AI Design: ${prompt.slice(0, 30)}...`,
+        name: 'AI Texture',
         src: imageUrl,
         image,
         visible: true,
@@ -890,67 +903,44 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
               </div>
             </div>
 
-            {/* Style and Variations Row */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Style Selector */}
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">
-                  Style
-                </label>
-                <div className="relative" ref={styleDropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowStyleDropdown(!showStyleDropdown)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm hover:bg-white/[0.06] transition-colors"
-                    disabled={state.loading}
-                  >
-                    <span>{AI_STYLE_PRESETS[style].name}</span>
-                    <svg className={`w-3.5 h-3.5 text-white/40 transition-transform ${showStyleDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {showStyleDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-full bg-[#222] border border-white/[0.08] rounded-lg shadow-xl z-50 overflow-hidden max-h-52 overflow-y-auto">
-                      {(Object.keys(AI_STYLE_PRESETS) as AIStylePreset[]).map((key) => (
-                        <button
-                          key={key}
-                          onClick={() => {
-                            setStyle(key);
-                            setShowStyleDropdown(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left transition-colors ${
-                            style === key 
-                              ? 'bg-white/[0.08] text-white' 
-                              : 'text-white/60 hover:bg-white/[0.04] hover:text-white'
-                          }`}
-                        >
-                          <div className="text-sm">{AI_STYLE_PRESETS[key].name}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Number of Variations */}
-              <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">
-                  Variations: {numOutputs}
-                </label>
-                <div className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08]">
-                  <input
-                    type="range"
-                    min="1"
-                    max="4"
-                    value={numOutputs}
-                    onChange={(e) => setNumOutputs(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-white"
-                    disabled={state.loading}
-                    title="Number of variations to generate"
-                    aria-label="Number of variations"
-                  />
-                </div>
+            {/* Style Selector */}
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-1.5">
+                Style
+              </label>
+              <div className="relative" ref={styleDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowStyleDropdown(!showStyleDropdown)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white text-sm hover:bg-white/[0.06] transition-colors"
+                  disabled={state.loading}
+                >
+                  <span>{AI_STYLE_PRESETS[style].name}</span>
+                  <svg className={`w-3.5 h-3.5 text-white/40 transition-transform ${showStyleDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showStyleDropdown && (
+                  <div className="absolute top-full left-0 mt-1 w-full bg-[#222] border border-white/[0.08] rounded-lg shadow-xl z-50 overflow-hidden max-h-52 overflow-y-auto">
+                    {(Object.keys(AI_STYLE_PRESETS) as AIStylePreset[]).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          setStyle(key);
+                          setShowStyleDropdown(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left transition-colors ${
+                          style === key 
+                            ? 'bg-white/[0.08] text-white' 
+                            : 'text-white/60 hover:bg-white/[0.04] hover:text-white'
+                        }`}
+                      >
+                        <div className="text-sm">{AI_STYLE_PRESETS[key].name}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1048,7 +1038,7 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
                       aria-label={`Select design variation ${index + 1}`}
                     >
                       <img
-                        src={img}
+                        src={img.preview}
                         alt={`Generated design ${index + 1}`}
                         className="w-full h-full object-contain bg-[#111]"
                       />
