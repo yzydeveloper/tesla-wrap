@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEditorStore } from '../state/useEditorStore';
 import { loadImage } from '../../utils/image';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserCredits, deductCredit } from '../../utils/aiCredits';
+import { getUserCredits } from '../../utils/aiCredits';
 import type { UserCredits } from '../../utils/aiCredits';
 import { createCheckoutSession, CREDIT_PACKAGES, saveStripeReturnContext, setStripeNavigation } from '../../utils/stripe';
 import { saveProjectToLocalStorage, saveUIState } from '../../utils/localStorageProject';
@@ -515,15 +515,11 @@ export const AIGeneratorDialog = ({ isOpen, onClose }: AIGeneratorDialogProps) =
         throw new Error('Failed to process generated images. Please try again.');
       }
 
-      // Deduct credit after successful generation
+      // Credit is deducted server-side in the edge function
+      // Refresh credits display to show the updated count
       if (user) {
-        const creditDeducted = await deductCredit(user.id);
-        if (creditDeducted) {
-          // Refresh credits display
-          const updatedCredits = await getUserCredits(user.id);
-          setCredits(updatedCredits);
-        } else {
-        }
+        const updatedCredits = await getUserCredits(user.id);
+        setCredits(updatedCredits);
       }
 
       setState({
