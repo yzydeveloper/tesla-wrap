@@ -158,6 +158,17 @@
         });
       },
 
+      /**
+       * Set license plate region
+       * @param {string} region - 'us' or 'eu'
+       */
+      setPlateRegion: function(region) {
+        return this.sendMessage({
+          type: 'set_plate_region',
+          region: region
+        });
+      },
+
       // =====================================================================
       // Godot -> React: Receive messages
       // =====================================================================
