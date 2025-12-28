@@ -83,15 +83,42 @@ export const saveProjectToSupabase = async (
 
   // Convert preview image to blob
   const previewBlob = await dataUrlToBlob(previewImageDataUrl);
+  
+  // Generate thumbnail client-side (200x200 WebP)
+  const thumbnailBlob = await generateThumbnail(previewImageDataUrl, 200);
 
   // Generate file paths - use designId if provided, otherwise generate new UUID
   const userId = session.user.id;
   const finalDesignId = designId || crypto.randomUUID();
   const projectFileName = `projects/${finalDesignId}.twrap`;
-  const previewFileName = `preview/${finalDesignId}.png`;
+  
+  // Use timestamped filenames to bust CDN cache
+  const timestamp = Date.now();
+  const previewFileName = `preview/${finalDesignId}_${timestamp}.png`;
+  const thumbnailFileName = `thumbnail/${finalDesignId}_${timestamp}.webp`;
 
-  // Upload files to storage
-  const [projectUploadResult, previewUploadResult] = await Promise.all([
+  // If updating, get the old file URLs to delete later
+  let oldPreviewPath: string | null = null;
+  let oldThumbnailPath: string | null = null;
+  if (designId) {
+    const { data: existingDesign } = await supabase
+      .from('designs')
+      .select('preview_image_url, preview_thumbnail_url')
+      .eq('id', designId)
+      .single();
+    
+    if (existingDesign?.preview_image_url) {
+      const urlWithoutParams = existingDesign.preview_image_url.split('?')[0];
+      oldPreviewPath = urlWithoutParams.split('/designs/').pop() || null;
+    }
+    if (existingDesign?.preview_thumbnail_url) {
+      const urlWithoutParams = existingDesign.preview_thumbnail_url.split('?')[0];
+      oldThumbnailPath = urlWithoutParams.split('/designs/').pop() || null;
+    }
+  }
+
+  // Upload all files to storage in parallel
+  const [projectUploadResult, previewUploadResult, thumbnailUploadResult] = await Promise.all([
     supabase.storage
       .from('designs')
       .upload(projectFileName, zipBlob, {
@@ -101,18 +128,44 @@ export const saveProjectToSupabase = async (
     supabase.storage
       .from('designs')
       .upload(previewFileName, previewBlob, {
-        cacheControl: '3600',
-        upsert: true,
+        cacheControl: '31536000', // 1 year cache (unique filename)
+        upsert: false,
+      }),
+    supabase.storage
+      .from('designs')
+      .upload(thumbnailFileName, thumbnailBlob, {
+        cacheControl: '31536000', // 1 year cache (unique filename)
+        contentType: 'image/webp',
+        upsert: false,
       }),
   ]);
 
   if (projectUploadResult.error) throw projectUploadResult.error;
   if (previewUploadResult.error) throw previewUploadResult.error;
+  if (thumbnailUploadResult.error) throw thumbnailUploadResult.error;
 
-  // Get public URL for preview
+  // Delete old files to save storage space (non-blocking)
+  const filesToDelete: string[] = [];
+  if (oldPreviewPath && oldPreviewPath !== previewFileName) {
+    filesToDelete.push(oldPreviewPath);
+  }
+  if (oldThumbnailPath && oldThumbnailPath !== thumbnailFileName) {
+    filesToDelete.push(oldThumbnailPath);
+  }
+  if (filesToDelete.length > 0) {
+    supabase.storage.from('designs').remove(filesToDelete)
+      .then(() => console.log('Deleted old files:', filesToDelete))
+      .catch((err) => console.warn('Failed to delete old files:', err));
+  }
+
+  // Get public URLs
   const { data: previewUrlData } = supabase.storage
     .from('designs')
     .getPublicUrl(previewFileName);
+  
+  const { data: thumbnailUrlData } = supabase.storage
+    .from('designs')
+    .getPublicUrl(thumbnailFileName);
 
   // Save or update design in database
   const designData = {
@@ -120,6 +173,7 @@ export const saveProjectToSupabase = async (
     description: options?.description ?? null,
     model_id: project.modelId,
     preview_image_url: previewUrlData.publicUrl,
+    preview_thumbnail_url: thumbnailUrlData.publicUrl,
     project_file_url: projectFileName, // Store path, not full URL
     visibility: options?.visibility ?? 'private',
     published: true,
@@ -290,6 +344,64 @@ const dataUrlToUint8Array = (dataUrl: string): Uint8Array => {
 const dataUrlToBlob = async (dataUrl: string): Promise<Blob> => {
   const response = await fetch(dataUrl);
   return await response.blob();
+};
+
+/**
+ * Generate a thumbnail from an image data URL using Canvas API
+ * Returns a WebP blob with the specified max dimension
+ */
+const generateThumbnail = async (dataUrl: string, maxSize: number): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      // Calculate dimensions maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > height) {
+        if (width > maxSize) {
+          height = Math.round((height / width) * maxSize);
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width = Math.round((width / height) * maxSize);
+          height = maxSize;
+        }
+      }
+      
+      // Create canvas and draw resized image
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+      
+      // Use high-quality image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Convert to WebP blob
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to generate thumbnail blob'));
+          }
+        },
+        'image/webp',
+        0.85 // Quality 85%
+      );
+    };
+    img.onerror = () => reject(new Error('Failed to load image for thumbnail'));
+    img.src = dataUrl;
+  });
 };
 
 const extractImages = (layers: SerializedLayer[]): { cleanedLayers: SerializedLayer[]; images: ImageReference[] } => {
